@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use axum::body::Bytes;
@@ -11,7 +11,7 @@ use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 
 use crate::action_log::ActionLogEntry;
-use crate::model::{Entity, EntityKind, Position, ResourceKind, TerrainKind, Tile};
+use crate::model::{Entity, Position, ResourceKind, Tile};
 use crate::state::SharedState;
 use crate::storage;
 
@@ -248,11 +248,11 @@ fn render_ascii_map(
         .into_iter()
         .map(|tile| tile.position)
         .collect::<HashSet<_>>();
-    let entities_by_position = world
+    let entity_positions = world
         .entities
         .values()
-        .map(|entity| (entity.position, entity.kind))
-        .collect::<HashMap<_, _>>();
+        .map(|entity| entity.position)
+        .collect::<HashSet<_>>();
 
     let mut output = String::new();
     output.push_str(&format!(
@@ -260,7 +260,7 @@ fn render_ascii_map(
         world.tick, world.map_id, player_id, center.x, center.y, radius, reveal_all
     ));
     output.push_str(
-        "legend: C core, W worker, B building, i iron, c copper, e energy, . plain, r rock, ~ water, ^ mountain, x ruin, ! danger, ? unseen\n",
+        "legend: E entity, B building, i iron, c copper, e energy, s stone, t tree, w water, . empty, ? unseen\n",
     );
 
     for ty in (center.y - radius..=center.y + radius).rev() {
@@ -270,7 +270,7 @@ fn render_ascii_map(
             output.push(tile_glyph(
                 world,
                 &visible_positions,
-                &entities_by_position,
+                &entity_positions,
                 position,
                 reveal_all,
             ));
@@ -288,41 +288,32 @@ fn render_ascii_map(
 fn tile_glyph(
     world: &crate::world::WorldState,
     visible_positions: &HashSet<Position>,
-    entities_by_position: &HashMap<Position, EntityKind>,
+    entity_positions: &HashSet<Position>,
     position: Position,
     reveal_all: bool,
 ) -> char {
     if !reveal_all && !visible_positions.contains(&position) {
         return '?';
     }
-    if let Some(entity_kind) = entities_by_position.get(&position) {
-        return match entity_kind {
-            EntityKind::Core => 'C',
-            EntityKind::Worker => 'W',
-        };
+    if entity_positions.contains(&position) {
+        return 'E';
     }
 
     let tile = world.tile_at(position);
     if tile.building_id.is_some() {
         return 'B';
     }
-    if tile.danger_level >= 20 {
-        return '!';
-    }
     if let Some(resource) = tile.resource {
         return match resource.kind {
             ResourceKind::Iron => 'i',
             ResourceKind::Copper => 'c',
             ResourceKind::Energy => 'e',
+            ResourceKind::Stone => 's',
+            ResourceKind::Tree => 't',
+            ResourceKind::Water => 'w',
         };
     }
-    match tile.terrain {
-        TerrainKind::Plain => '.',
-        TerrainKind::Rock => 'r',
-        TerrainKind::Water => '~',
-        TerrainKind::Mountain => '^',
-        TerrainKind::Ruin => 'x',
-    }
+    '.'
 }
 
 #[cfg(test)]
@@ -337,8 +328,7 @@ mod tests {
         let map = render_ascii_map(&world, 1, Position::new(0, 0), 2, false);
 
         assert!(map.contains("player_id=1"));
-        assert!(map.contains('C'));
-        assert!(map.contains('W'));
+        assert!(map.contains('E'));
     }
 
     #[test]

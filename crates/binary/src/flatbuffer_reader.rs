@@ -53,7 +53,6 @@ fn build_game_output(input: GameInput<'_>) -> Result<Vec<u8>, Box<dyn std::error
         None => return empty_output("missing observation"),
     };
 
-    let current_tick = input.world().map(|world| world.tick()).unwrap_or_default();
     let max_actions = input
         .runtime_limits()
         .and_then(|limits| limits.action_limits())
@@ -63,7 +62,7 @@ fn build_game_output(input: GameInput<'_>) -> Result<Vec<u8>, Box<dyn std::error
         return empty_output("max_actions is zero");
     }
 
-    let actors = ready_actors(observation, current_tick);
+    let actors = ready_actors(observation);
     if actors.is_empty() {
         return empty_output("no ready owned worker or core entity");
     };
@@ -83,7 +82,7 @@ fn build_game_output(input: GameInput<'_>) -> Result<Vec<u8>, Box<dyn std::error
     Ok(build_output_with_actions(actions))
 }
 
-fn ready_actors(observation: Observation<'_>, current_tick: u64) -> Vec<Actor> {
+fn ready_actors(observation: Observation<'_>) -> Vec<Actor> {
     let mut actors = Vec::new();
     let Some(entities) = observation.owned_entities() else {
         return actors;
@@ -91,18 +90,13 @@ fn ready_actors(observation: Observation<'_>, current_tick: u64) -> Vec<Actor> {
 
     for index in 0..entities.len() {
         let entity = entities.get(index);
-        if entity.cooldown_until_tick() > current_tick {
-            continue;
-        }
         let Some(position) = entity.position().map(to_position) else {
             continue;
         };
-        if matches!(entity.kind(), EntityKind::Worker | EntityKind::Core) {
-            actors.push(Actor {
-                id: entity.id(),
-                position,
-            });
-        }
+        actors.push(Actor {
+            id: entity.id(),
+            position,
+        });
     }
 
     actors.sort_by_key(|actor| actor.id);
@@ -269,9 +263,6 @@ fn visible_passable_positions(observation: Observation<'_>) -> HashSet<Position>
         let Some(position) = tile.position().map(to_position) else {
             continue;
         };
-        if matches!(tile.terrain(), TerrainKind::Water | TerrainKind::Mountain) {
-            continue;
-        }
         if tile.building().is_some() {
             continue;
         }
@@ -434,14 +425,12 @@ fn build_output_with_actions(planned_actions: Vec<PlannedAction>) -> Vec<u8> {
 
     let actions = fbb.create_vector(&action_offsets);
     let persistent_memory = fbb.create_vector::<u8>(&[]);
-    let debug_message = fbb.create_string("sample_bot emitted planned actions");
     let output = GameOutput::create(
         &mut fbb,
         &GameOutputArgs {
             protocol_version: ProtocolVersion::V1,
             actions: Some(actions),
             persistent_memory: Some(persistent_memory),
-            debug_message: Some(debug_message),
         },
     );
 
@@ -449,19 +438,17 @@ fn build_output_with_actions(planned_actions: Vec<PlannedAction>) -> Vec<u8> {
     fbb.finished_data().to_vec()
 }
 
-fn build_output_without_actions(reason: &str) -> Vec<u8> {
+fn build_output_without_actions(_reason: &str) -> Vec<u8> {
     let mut fbb = FlatBufferBuilder::new();
     let empty_actions: [flatbuffers::WIPOffset<Action<'_>>; 0] = [];
     let actions = fbb.create_vector(&empty_actions);
     let persistent_memory = fbb.create_vector::<u8>(&[]);
-    let debug_message = fbb.create_string(reason);
     let output = GameOutput::create(
         &mut fbb,
         &GameOutputArgs {
             protocol_version: ProtocolVersion::V1,
             actions: Some(actions),
             persistent_memory: Some(persistent_memory),
-            debug_message: Some(debug_message),
         },
     );
 

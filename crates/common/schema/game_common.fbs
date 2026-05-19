@@ -7,36 +7,25 @@ enum ProtocolVersion : ushort {
 enum MapKind : byte {
   Resource = 0,
   Hazard = 1,
-  Monster = 2,
-  Event = 3,
-  War = 4
-}
-
-enum TerrainKind : byte {
-  Empty = 0,
-  Plain = 1,
-  Rock = 2,
-  Water = 3,
-  Mountain = 4,
-  Ruin = 5
+  Monster = 2
 }
 
 enum ResourceKind : byte {
   None = 0,
   Iron = 1,
   Copper = 2,
-  Energy = 3
+  Energy = 3,
+  Stone = 4,
+  Tree = 5,
+  Water = 6
 }
 
 enum BuildingKind : byte {
   None = 0,
-  Core = 1,
-  Miner = 2,
-  Storage = 3,
-  Solar = 4,
-  Relay = 5,
-  Wall = 6,
-  Turret = 7
+  Miner = 1,
+  Storage = 2,
+  Solar = 3,
+  Assembler = 4
 }
 
 enum EntityKind : byte {
@@ -47,28 +36,6 @@ enum EntityKind : byte {
   Solar = 4,
   Relay = 5,
   Decoy = 6
-}
-
-enum MonsterKind : byte {
-  Unknown = 0,
-  Drone = 1,
-  Swarm = 2,
-  Guardian = 3
-}
-
-enum EnvironmentEventKind : byte {
-  Unknown = 0,
-  Storm = 1,
-  Radiation = 2,
-  Meteor = 3,
-  ResourceSurge = 4
-}
-
-enum PowerMode : byte {
-  Normal = 0,
-  LowPower = 1,
-  Performance = 2,
-  Emergency = 3
 }
 
 struct Vec2I {
@@ -90,57 +57,20 @@ table Building {
   id:ulong;
   kind:BuildingKind;
   owner_id:ulong;
-  hp:uint;
-  max_hp:uint;
   power:int;
 }
 
 table Tile {
   position:Vec2I;
-  base_terrain:TerrainKind;
-  terrain:TerrainKind;
   resource:ResourceStack;
   building:Building;
   owner_id:ulong;
-  danger_level:ushort;
 }
 
 table Entity {
   id:ulong;
-  kind:EntityKind;
   position:Vec2I;
-  hp:uint;
-  max_hp:uint;
-  energy:uint;
   cargo:[ResourceStack];
-  cooldown_until_tick:ulong;
-}
-
-table Monster {
-  id:ulong;
-  kind:MonsterKind;
-  position:Vec2I;
-  hp:uint;
-  max_hp:uint;
-  target_entity_id:ulong;
-}
-
-table EnvironmentEvent {
-  id:ulong;
-  kind:EnvironmentEventKind;
-  center:Vec2I;
-  radius:uint;
-  starts_at_tick:ulong;
-  ends_at_tick:ulong;
-  intensity:ushort;
-}
-
-table Signal {
-  from_entity_id:ulong;
-  to_entity_id:ulong;
-  channel:uint;
-  sent_at_tick:ulong;
-  payload:[ubyte];
 }
 
 table ComputeBudget {
@@ -153,6 +83,5 @@ table ComputeBudget {
 
 table ActionLimits {
   max_actions:uint;
-  max_signal_bytes:uint;
   max_persistent_memory_bytes:uint;
 }

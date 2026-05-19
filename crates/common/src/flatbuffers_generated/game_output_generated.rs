@@ -13,20 +13,15 @@ extern crate alloc;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 pub const ENUM_MIN_ACTION_KIND: i8 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_ACTION_KIND: i8 = 9;
+pub const ENUM_MAX_ACTION_KIND: i8 = 4;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 #[allow(non_camel_case_types)]
-pub const ENUM_VALUES_ACTION_KIND: [ActionKind; 10] = [
+pub const ENUM_VALUES_ACTION_KIND: [ActionKind; 5] = [
   ActionKind::Move,
   ActionKind::Mine,
   ActionKind::Build,
-  ActionKind::Transfer,
-  ActionKind::Scan,
-  ActionKind::SendSignal,
-  ActionKind::Attack,
-  ActionKind::Repair,
-  ActionKind::SetPowerMode,
-  ActionKind::DeployDecoy,
+  ActionKind::Lift,
+  ActionKind::Put,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -37,27 +32,17 @@ impl ActionKind {
   pub const Move: Self = Self(0);
   pub const Mine: Self = Self(1);
   pub const Build: Self = Self(2);
-  pub const Transfer: Self = Self(3);
-  pub const Scan: Self = Self(4);
-  pub const SendSignal: Self = Self(5);
-  pub const Attack: Self = Self(6);
-  pub const Repair: Self = Self(7);
-  pub const SetPowerMode: Self = Self(8);
-  pub const DeployDecoy: Self = Self(9);
+  pub const Lift: Self = Self(3);
+  pub const Put: Self = Self(4);
 
   pub const ENUM_MIN: i8 = 0;
-  pub const ENUM_MAX: i8 = 9;
+  pub const ENUM_MAX: i8 = 4;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::Move,
     Self::Mine,
     Self::Build,
-    Self::Transfer,
-    Self::Scan,
-    Self::SendSignal,
-    Self::Attack,
-    Self::Repair,
-    Self::SetPowerMode,
-    Self::DeployDecoy,
+    Self::Lift,
+    Self::Put,
   ];
   /// Returns the variant's name or "" if unknown.
   pub fn variant_name(self) -> Option<&'static str> {
@@ -65,13 +50,8 @@ impl ActionKind {
       Self::Move => Some("Move"),
       Self::Mine => Some("Mine"),
       Self::Build => Some("Build"),
-      Self::Transfer => Some("Transfer"),
-      Self::Scan => Some("Scan"),
-      Self::SendSignal => Some("SendSignal"),
-      Self::Attack => Some("Attack"),
-      Self::Repair => Some("Repair"),
-      Self::SetPowerMode => Some("SetPowerMode"),
-      Self::DeployDecoy => Some("DeployDecoy"),
+      Self::Lift => Some("Lift"),
+      Self::Put => Some("Put"),
       _ => None,
     }
   }
@@ -150,10 +130,6 @@ impl<'a> Action<'a> {
   pub const VT_RESOURCE: ::flatbuffers::VOffsetT = 14;
   pub const VT_BUILDING_KIND: ::flatbuffers::VOffsetT = 16;
   pub const VT_AMOUNT: ::flatbuffers::VOffsetT = 18;
-  pub const VT_SCAN_RADIUS: ::flatbuffers::VOffsetT = 20;
-  pub const VT_SIGNAL_CHANNEL: ::flatbuffers::VOffsetT = 22;
-  pub const VT_SIGNAL_PAYLOAD: ::flatbuffers::VOffsetT = 24;
-  pub const VT_POWER_MODE: ::flatbuffers::VOffsetT = 26;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -168,13 +144,9 @@ impl<'a> Action<'a> {
     builder.add_target_building_id(args.target_building_id);
     builder.add_target_entity_id(args.target_entity_id);
     builder.add_actor_entity_id(args.actor_entity_id);
-    if let Some(x) = args.signal_payload { builder.add_signal_payload(x); }
-    builder.add_signal_channel(args.signal_channel);
-    builder.add_scan_radius(args.scan_radius);
     builder.add_amount(args.amount);
     if let Some(x) = args.resource { builder.add_resource(x); }
     if let Some(x) = args.target_position { builder.add_target_position(x); }
-    builder.add_power_mode(args.power_mode);
     builder.add_building_kind(args.building_kind);
     builder.add_kind(args.kind);
     builder.finish()
@@ -237,34 +209,6 @@ impl<'a> Action<'a> {
     // which contains a valid value in this slot
     unsafe { self._tab.get::<u32>(Action::VT_AMOUNT, Some(0)).unwrap()}
   }
-  #[inline]
-  pub fn scan_radius(&self) -> u32 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Action::VT_SCAN_RADIUS, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn signal_channel(&self) -> u32 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Action::VT_SIGNAL_CHANNEL, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn signal_payload(&self) -> Option<::flatbuffers::Vector<'a, u8>> {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, u8>>>(Action::VT_SIGNAL_PAYLOAD, None)}
-  }
-  #[inline]
-  pub fn power_mode(&self) -> PowerMode {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<PowerMode>(Action::VT_POWER_MODE, Some(PowerMode::Normal)).unwrap()}
-  }
 }
 
 impl ::flatbuffers::Verifiable for Action<'_> {
@@ -281,10 +225,6 @@ impl ::flatbuffers::Verifiable for Action<'_> {
      .visit_field::<ResourceStack>("resource", Self::VT_RESOURCE, false)?
      .visit_field::<BuildingKind>("building_kind", Self::VT_BUILDING_KIND, false)?
      .visit_field::<u32>("amount", Self::VT_AMOUNT, false)?
-     .visit_field::<u32>("scan_radius", Self::VT_SCAN_RADIUS, false)?
-     .visit_field::<u32>("signal_channel", Self::VT_SIGNAL_CHANNEL, false)?
-     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, u8>>>("signal_payload", Self::VT_SIGNAL_PAYLOAD, false)?
-     .visit_field::<PowerMode>("power_mode", Self::VT_POWER_MODE, false)?
      .finish();
     Ok(())
   }
@@ -298,10 +238,6 @@ pub struct ActionArgs<'a> {
     pub resource: Option<&'a ResourceStack>,
     pub building_kind: BuildingKind,
     pub amount: u32,
-    pub scan_radius: u32,
-    pub signal_channel: u32,
-    pub signal_payload: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, u8>>>,
-    pub power_mode: PowerMode,
 }
 impl<'a> Default for ActionArgs<'a> {
   #[inline]
@@ -315,10 +251,6 @@ impl<'a> Default for ActionArgs<'a> {
       resource: None,
       building_kind: BuildingKind::None,
       amount: 0,
-      scan_radius: 0,
-      signal_channel: 0,
-      signal_payload: None,
-      power_mode: PowerMode::Normal,
     }
   }
 }
@@ -361,22 +293,6 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> ActionBuilder<'a, 'b, A> {
     self.fbb_.push_slot::<u32>(Action::VT_AMOUNT, amount, 0);
   }
   #[inline]
-  pub fn add_scan_radius(&mut self, scan_radius: u32) {
-    self.fbb_.push_slot::<u32>(Action::VT_SCAN_RADIUS, scan_radius, 0);
-  }
-  #[inline]
-  pub fn add_signal_channel(&mut self, signal_channel: u32) {
-    self.fbb_.push_slot::<u32>(Action::VT_SIGNAL_CHANNEL, signal_channel, 0);
-  }
-  #[inline]
-  pub fn add_signal_payload(&mut self, signal_payload: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , u8>>) {
-    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Action::VT_SIGNAL_PAYLOAD, signal_payload);
-  }
-  #[inline]
-  pub fn add_power_mode(&mut self, power_mode: PowerMode) {
-    self.fbb_.push_slot::<PowerMode>(Action::VT_POWER_MODE, power_mode, PowerMode::Normal);
-  }
-  #[inline]
   pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> ActionBuilder<'a, 'b, A> {
     let start = _fbb.start_table();
     ActionBuilder {
@@ -402,10 +318,6 @@ impl ::core::fmt::Debug for Action<'_> {
       ds.field("resource", &self.resource());
       ds.field("building_kind", &self.building_kind());
       ds.field("amount", &self.amount());
-      ds.field("scan_radius", &self.scan_radius());
-      ds.field("signal_channel", &self.signal_channel());
-      ds.field("signal_payload", &self.signal_payload());
-      ds.field("power_mode", &self.power_mode());
       ds.finish()
   }
 }
@@ -428,7 +340,6 @@ impl<'a> GameOutput<'a> {
   pub const VT_PROTOCOL_VERSION: ::flatbuffers::VOffsetT = 4;
   pub const VT_ACTIONS: ::flatbuffers::VOffsetT = 6;
   pub const VT_PERSISTENT_MEMORY: ::flatbuffers::VOffsetT = 8;
-  pub const VT_DEBUG_MESSAGE: ::flatbuffers::VOffsetT = 10;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -440,7 +351,6 @@ impl<'a> GameOutput<'a> {
     args: &'args GameOutputArgs<'args>
   ) -> ::flatbuffers::WIPOffset<GameOutput<'bldr>> {
     let mut builder = GameOutputBuilder::new(_fbb);
-    if let Some(x) = args.debug_message { builder.add_debug_message(x); }
     if let Some(x) = args.persistent_memory { builder.add_persistent_memory(x); }
     if let Some(x) = args.actions { builder.add_actions(x); }
     builder.add_protocol_version(args.protocol_version);
@@ -469,13 +379,6 @@ impl<'a> GameOutput<'a> {
     // which contains a valid value in this slot
     unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, u8>>>(GameOutput::VT_PERSISTENT_MEMORY, None)}
   }
-  #[inline]
-  pub fn debug_message(&self) -> Option<&'a str> {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(GameOutput::VT_DEBUG_MESSAGE, None)}
-  }
 }
 
 impl ::flatbuffers::Verifiable for GameOutput<'_> {
@@ -487,7 +390,6 @@ impl ::flatbuffers::Verifiable for GameOutput<'_> {
      .visit_field::<ProtocolVersion>("protocol_version", Self::VT_PROTOCOL_VERSION, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<Action>>>>("actions", Self::VT_ACTIONS, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, u8>>>("persistent_memory", Self::VT_PERSISTENT_MEMORY, false)?
-     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("debug_message", Self::VT_DEBUG_MESSAGE, false)?
      .finish();
     Ok(())
   }
@@ -496,7 +398,6 @@ pub struct GameOutputArgs<'a> {
     pub protocol_version: ProtocolVersion,
     pub actions: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Action<'a>>>>>,
     pub persistent_memory: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, u8>>>,
-    pub debug_message: Option<::flatbuffers::WIPOffset<&'a str>>,
 }
 impl<'a> Default for GameOutputArgs<'a> {
   #[inline]
@@ -505,7 +406,6 @@ impl<'a> Default for GameOutputArgs<'a> {
       protocol_version: ProtocolVersion::V1,
       actions: None,
       persistent_memory: None,
-      debug_message: None,
     }
   }
 }
@@ -528,10 +428,6 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> GameOutputBuilder<'a, 'b, A> 
     self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(GameOutput::VT_PERSISTENT_MEMORY, persistent_memory);
   }
   #[inline]
-  pub fn add_debug_message(&mut self, debug_message: ::flatbuffers::WIPOffset<&'b  str>) {
-    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(GameOutput::VT_DEBUG_MESSAGE, debug_message);
-  }
-  #[inline]
   pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> GameOutputBuilder<'a, 'b, A> {
     let start = _fbb.start_table();
     GameOutputBuilder {
@@ -552,7 +448,6 @@ impl ::core::fmt::Debug for GameOutput<'_> {
       ds.field("protocol_version", &self.protocol_version());
       ds.field("actions", &self.actions());
       ds.field("persistent_memory", &self.persistent_memory());
-      ds.field("debug_message", &self.debug_message());
       ds.finish()
   }
 }

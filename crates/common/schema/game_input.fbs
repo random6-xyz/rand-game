@@ -4,7 +4,6 @@ namespace RandGame;
 
 table WorldInfo {
   tick:ulong;
-  world_seed:ulong;
   map_id:uint;
   map_kind:MapKind;
   ruleset_version:uint;
@@ -15,9 +14,6 @@ table Observation {
   radius:uint;
   visible_tiles:[Tile];
   owned_entities:[Entity];
-  visible_monsters:[Monster];
-  environment_events:[EnvironmentEvent];
-  incoming_signals:[Signal];
 }
 
 table RuntimeLimits {

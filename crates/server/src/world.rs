@@ -2,13 +2,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::model::{
-    Building, BuildingKind, ChunkCoord, CoreTier, Entity, EntityKind, EnvironmentEvent,
-    EnvironmentEventKind, MapKind, Monster, MonsterKind, Player, Position, ResourceStack,
-    TerrainKind, Tile, TileOverride, ValidatedAction,
+    Building, BuildingKind, CoreTier, Entity, MapKind, Player, Position, ResourceStack, Tile,
+    TileOverride, ValidatedAction,
 };
 use crate::rules;
-
-pub const CHUNK_SIZE: i32 = 32;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct WorldState {
@@ -46,17 +43,11 @@ impl WorldState {
             rules::generated_tile(self.world_seed, self.map_id, self.map_kind(), position);
 
         if let Some(change) = self.tile_overrides.get(&position) {
-            if let Some(terrain) = change.terrain {
-                tile.terrain = terrain;
-            }
             if let Some(resource) = change.resource {
                 tile.resource = resource;
             }
             if let Some(owner_id) = change.owner_id {
                 tile.owner_id = owner_id;
-            }
-            if let Some(danger_level) = change.danger_level {
-                tile.danger_level = danger_level;
             }
         }
 
@@ -73,19 +64,10 @@ impl WorldState {
     }
 
     pub fn map_kind(&self) -> MapKind {
-        match self.map_id % 5 {
+        match self.map_id % 3 {
             0 => MapKind::Resource,
             1 => MapKind::Hazard,
-            2 => MapKind::Monster,
-            3 => MapKind::Event,
-            _ => MapKind::War,
-        }
-    }
-
-    pub fn chunk_coord(position: Position) -> ChunkCoord {
-        ChunkCoord {
-            x: position.x.div_euclid(CHUNK_SIZE),
-            y: position.y.div_euclid(CHUNK_SIZE),
+            _ => MapKind::Monster,
         }
     }
 
@@ -128,73 +110,8 @@ impl WorldState {
             .collect()
     }
 
-    pub fn visible_monsters_for(&self, player_id: u64) -> Vec<Monster> {
-        let mut monsters = Vec::new();
-        for entity in self.owned_entities(player_id) {
-            let radius = self.observation_radius as i32;
-            let min_chunk = Self::chunk_coord(Position::new(
-                entity.position.x - radius,
-                entity.position.y - radius,
-            ));
-            let max_chunk = Self::chunk_coord(Position::new(
-                entity.position.x + radius,
-                entity.position.y + radius,
-            ));
-            for chunk_y in min_chunk.y..=max_chunk.y {
-                for chunk_x in min_chunk.x..=max_chunk.x {
-                    if let Some(monster) = self.generated_monster(ChunkCoord {
-                        x: chunk_x,
-                        y: chunk_y,
-                    }) && entity.position.manhattan(monster.position) <= self.observation_radius
-                    {
-                        monsters.push(monster);
-                    }
-                }
-            }
-        }
-        monsters.sort_by_key(|monster| monster.id);
-        monsters.dedup_by_key(|monster| monster.id);
-        monsters
-    }
-
-    pub fn environment_events_for(&self, player_id: u64) -> Vec<EnvironmentEvent> {
-        let mut events = Vec::new();
-        for entity in self.owned_entities(player_id) {
-            let radius = self.observation_radius as i32;
-            let min_chunk = Self::chunk_coord(Position::new(
-                entity.position.x - radius,
-                entity.position.y - radius,
-            ));
-            let max_chunk = Self::chunk_coord(Position::new(
-                entity.position.x + radius,
-                entity.position.y + radius,
-            ));
-            for chunk_y in min_chunk.y..=max_chunk.y {
-                for chunk_x in min_chunk.x..=max_chunk.x {
-                    if let Some(event) = self.generated_environment_event(ChunkCoord {
-                        x: chunk_x,
-                        y: chunk_y,
-                    }) && entity.position.manhattan(event.center)
-                        <= self.observation_radius + event.radius
-                    {
-                        events.push(event);
-                    }
-                }
-            }
-        }
-        events.sort_by_key(|event| event.id);
-        events.dedup_by_key(|event| event.id);
-        events
-    }
-
     pub fn is_passable(&self, position: Position) -> bool {
-        let tile = self.tile_at(position);
-        !matches!(tile.terrain, TerrainKind::Water | TerrainKind::Mountain)
-            && tile.building_id.is_none()
-    }
-
-    pub fn building_at_id(&self, building_id: u64) -> Option<&Building> {
-        self.buildings.get(&building_id)
+        self.tile_at(position).building_id.is_none()
     }
 
     pub fn player_bot_path(&self, player_id: u64) -> Option<PathBuf> {
@@ -254,98 +171,11 @@ impl WorldState {
                 target,
                 building_kind,
             } => self.apply_build(player_id, actor_entity_id, target, building_kind),
-            ValidatedAction::Transfer {
-                actor_entity_id,
-                target_entity_id,
-                target_building_id,
-                resource,
-                amount,
-            } => self.apply_transfer(
-                actor_entity_id,
-                target_entity_id,
-                target_building_id,
-                resource,
-                amount,
-            ),
-            ValidatedAction::Scan {
-                actor_entity_id,
-                target,
-                radius,
-            } => format!(
-                "entity {actor_entity_id} scanned ({}, {}) radius {radius}",
-                target.x, target.y
-            ),
         }
     }
 
     pub fn advance_tick(&mut self) {
         self.tick += 1;
-    }
-
-    fn generated_monster(&self, chunk: ChunkCoord) -> Option<Monster> {
-        if !matches!(self.map_kind(), MapKind::Monster | MapKind::War) {
-            return None;
-        }
-        let sample = rules::hash_chunk(self.world_seed, self.map_id, chunk, self.tick / 10);
-        if sample % 100 >= 35 {
-            return None;
-        }
-        let position = Position::new(
-            chunk.x * CHUNK_SIZE + ((sample >> 8) % CHUNK_SIZE as u64) as i32,
-            chunk.y * CHUNK_SIZE + ((sample >> 16) % CHUNK_SIZE as u64) as i32,
-        );
-        let kind = match (sample >> 24) % 3 {
-            0 => MonsterKind::Drone,
-            1 => MonsterKind::Swarm,
-            _ => MonsterKind::Guardian,
-        };
-        let max_hp = match kind {
-            MonsterKind::Drone => 40,
-            MonsterKind::Swarm => 75,
-            MonsterKind::Guardian => 150,
-        };
-        Some(Monster {
-            id: sample,
-            kind,
-            position,
-            hp: max_hp,
-            max_hp,
-            target_entity_id: 0,
-        })
-    }
-
-    fn generated_environment_event(&self, chunk: ChunkCoord) -> Option<EnvironmentEvent> {
-        if !matches!(
-            self.map_kind(),
-            MapKind::Hazard | MapKind::Event | MapKind::War
-        ) {
-            return None;
-        }
-        let window = self.tick / 30;
-        let sample = rules::hash_chunk(
-            self.world_seed ^ 0x4556_454e_5453,
-            self.map_id,
-            chunk,
-            window,
-        );
-        if sample % 100 >= 45 {
-            return None;
-        }
-        let kind = match (sample >> 8) % 4 {
-            0 => EnvironmentEventKind::Storm,
-            1 => EnvironmentEventKind::Radiation,
-            2 => EnvironmentEventKind::Meteor,
-            _ => EnvironmentEventKind::ResourceSurge,
-        };
-        Some(EnvironmentEvent {
-            id: sample,
-            kind,
-            center: Position::new(chunk.x * CHUNK_SIZE + 16, chunk.y * CHUNK_SIZE + 16),
-            radius: 4 + ((sample >> 16) % 9) as u32,
-            starts_at_tick: window * 30,
-            ends_at_tick: window * 30 + 30,
-            intensity: 1 + ((sample >> 24) % 100) as u16,
-        })
     }
 
     fn apply_move(&mut self, actor_entity_id: u64, target: Position) -> String {
@@ -355,7 +185,6 @@ impl WorldState {
             .expect("validated move actor must exist");
         let from = entity.position;
         entity.position = target;
-        entity.cooldown_until_tick = self.tick + 1;
         format!(
             "entity {actor_entity_id} moved from ({}, {}) to ({}, {})",
             from.x, from.y, target.x, target.y
@@ -388,7 +217,6 @@ impl WorldState {
                     amount: mined,
                 },
             );
-            entity.cooldown_until_tick = self.tick + 1;
         }
 
         format!(
@@ -412,37 +240,13 @@ impl WorldState {
                 kind: building_kind,
                 owner_id: player_id,
                 position: target,
-                hp: 100,
-                max_hp: 100,
                 power: 0,
             },
         );
 
-        if let Some(entity) = self.entities.get_mut(&actor_entity_id) {
-            entity.cooldown_until_tick = self.tick + 2;
-        }
-
         format!(
             "entity {actor_entity_id} built {:?} {} at ({}, {})",
             building_kind, building_id, target.x, target.y
-        )
-    }
-
-    fn apply_transfer(
-        &mut self,
-        actor_entity_id: u64,
-        target_entity_id: Option<u64>,
-        target_building_id: Option<u64>,
-        resource: ResourceStack,
-        amount: u32,
-    ) -> String {
-        let moved = amount.min(resource.amount);
-        if let Some(entity) = self.entities.get_mut(&actor_entity_id) {
-            entity.cooldown_until_tick = self.tick + 1;
-        }
-        format!(
-            "entity {actor_entity_id} transferred {moved} {:?} to entity {:?} building {:?}",
-            resource.kind, target_entity_id, target_building_id
         )
     }
 
@@ -462,39 +266,27 @@ impl WorldState {
             core_entity_id,
             Entity {
                 id: core_entity_id,
-                kind: EntityKind::Core,
                 owner_id: player_id,
                 position: core_position,
-                hp: 500,
-                max_hp: 500,
-                energy: 100,
                 cargo: Vec::new(),
-                cooldown_until_tick: 0,
             },
         );
         self.entities.insert(
             worker_entity_id,
             Entity {
                 id: worker_entity_id,
-                kind: EntityKind::Worker,
                 owner_id: player_id,
                 position: worker_position,
-                hp: 100,
-                max_hp: 100,
-                energy: 50,
                 cargo: Vec::new(),
-                cooldown_until_tick: 0,
             },
         );
         self.buildings.insert(
             core_building_id,
             Building {
                 id: core_building_id,
-                kind: BuildingKind::Core,
+                kind: BuildingKind::None,
                 owner_id: player_id,
                 position: core_position,
-                hp: 1000,
-                max_hp: 1000,
                 power: 25,
             },
         );

@@ -91,15 +91,13 @@ impl ::flatbuffers::SimpleToVerifyInSlice for ProtocolVersion {}
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 pub const ENUM_MIN_MAP_KIND: i8 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_MAP_KIND: i8 = 4;
+pub const ENUM_MAX_MAP_KIND: i8 = 2;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 #[allow(non_camel_case_types)]
-pub const ENUM_VALUES_MAP_KIND: [MapKind; 5] = [
+pub const ENUM_VALUES_MAP_KIND: [MapKind; 3] = [
   MapKind::Resource,
   MapKind::Hazard,
   MapKind::Monster,
-  MapKind::Event,
-  MapKind::War,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -110,17 +108,13 @@ impl MapKind {
   pub const Resource: Self = Self(0);
   pub const Hazard: Self = Self(1);
   pub const Monster: Self = Self(2);
-  pub const Event: Self = Self(3);
-  pub const War: Self = Self(4);
 
   pub const ENUM_MIN: i8 = 0;
-  pub const ENUM_MAX: i8 = 4;
+  pub const ENUM_MAX: i8 = 2;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::Resource,
     Self::Hazard,
     Self::Monster,
-    Self::Event,
-    Self::War,
   ];
   /// Returns the variant's name or "" if unknown.
   pub fn variant_name(self) -> Option<&'static str> {
@@ -128,8 +122,6 @@ impl MapKind {
       Self::Resource => Some("Resource"),
       Self::Hazard => Some("Hazard"),
       Self::Monster => Some("Monster"),
-      Self::Event => Some("Event"),
-      Self::War => Some("War"),
       _ => None,
     }
   }
@@ -185,116 +177,19 @@ impl<'a> ::flatbuffers::Verifiable for MapKind {
 
 impl ::flatbuffers::SimpleToVerifyInSlice for MapKind {}
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MIN_TERRAIN_KIND: i8 = 0;
-#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_TERRAIN_KIND: i8 = 5;
-#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-#[allow(non_camel_case_types)]
-pub const ENUM_VALUES_TERRAIN_KIND: [TerrainKind; 6] = [
-  TerrainKind::Empty,
-  TerrainKind::Plain,
-  TerrainKind::Rock,
-  TerrainKind::Water,
-  TerrainKind::Mountain,
-  TerrainKind::Ruin,
-];
-
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-#[repr(transparent)]
-pub struct TerrainKind(pub i8);
-#[allow(non_upper_case_globals)]
-impl TerrainKind {
-  pub const Empty: Self = Self(0);
-  pub const Plain: Self = Self(1);
-  pub const Rock: Self = Self(2);
-  pub const Water: Self = Self(3);
-  pub const Mountain: Self = Self(4);
-  pub const Ruin: Self = Self(5);
-
-  pub const ENUM_MIN: i8 = 0;
-  pub const ENUM_MAX: i8 = 5;
-  pub const ENUM_VALUES: &'static [Self] = &[
-    Self::Empty,
-    Self::Plain,
-    Self::Rock,
-    Self::Water,
-    Self::Mountain,
-    Self::Ruin,
-  ];
-  /// Returns the variant's name or "" if unknown.
-  pub fn variant_name(self) -> Option<&'static str> {
-    match self {
-      Self::Empty => Some("Empty"),
-      Self::Plain => Some("Plain"),
-      Self::Rock => Some("Rock"),
-      Self::Water => Some("Water"),
-      Self::Mountain => Some("Mountain"),
-      Self::Ruin => Some("Ruin"),
-      _ => None,
-    }
-  }
-}
-impl ::core::fmt::Debug for TerrainKind {
-  fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-    if let Some(name) = self.variant_name() {
-      f.write_str(name)
-    } else {
-      f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
-    }
-  }
-}
-impl<'a> ::flatbuffers::Follow<'a> for TerrainKind {
-  type Inner = Self;
-  #[inline]
-  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
-    let b = unsafe { ::flatbuffers::read_scalar_at::<i8>(buf, loc) };
-    Self(b)
-  }
-}
-
-impl ::flatbuffers::Push for TerrainKind {
-    type Output = TerrainKind;
-    #[inline]
-    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-        unsafe { ::flatbuffers::emplace_scalar::<i8>(dst, self.0) };
-    }
-}
-
-impl ::flatbuffers::EndianScalar for TerrainKind {
-  type Scalar = i8;
-  #[inline]
-  fn to_little_endian(self) -> i8 {
-    self.0.to_le()
-  }
-  #[inline]
-  #[allow(clippy::wrong_self_convention)]
-  fn from_little_endian(v: i8) -> Self {
-    let b = i8::from_le(v);
-    Self(b)
-  }
-}
-
-impl<'a> ::flatbuffers::Verifiable for TerrainKind {
-  #[inline]
-  fn run_verifier(
-    v: &mut ::flatbuffers::Verifier, pos: usize
-  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
-    i8::run_verifier(v, pos)
-  }
-}
-
-impl ::flatbuffers::SimpleToVerifyInSlice for TerrainKind {}
-#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 pub const ENUM_MIN_RESOURCE_KIND: i8 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_RESOURCE_KIND: i8 = 3;
+pub const ENUM_MAX_RESOURCE_KIND: i8 = 6;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 #[allow(non_camel_case_types)]
-pub const ENUM_VALUES_RESOURCE_KIND: [ResourceKind; 4] = [
+pub const ENUM_VALUES_RESOURCE_KIND: [ResourceKind; 7] = [
   ResourceKind::None,
   ResourceKind::Iron,
   ResourceKind::Copper,
   ResourceKind::Energy,
+  ResourceKind::Stone,
+  ResourceKind::Tree,
+  ResourceKind::Water,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -306,14 +201,20 @@ impl ResourceKind {
   pub const Iron: Self = Self(1);
   pub const Copper: Self = Self(2);
   pub const Energy: Self = Self(3);
+  pub const Stone: Self = Self(4);
+  pub const Tree: Self = Self(5);
+  pub const Water: Self = Self(6);
 
   pub const ENUM_MIN: i8 = 0;
-  pub const ENUM_MAX: i8 = 3;
+  pub const ENUM_MAX: i8 = 6;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::None,
     Self::Iron,
     Self::Copper,
     Self::Energy,
+    Self::Stone,
+    Self::Tree,
+    Self::Water,
   ];
   /// Returns the variant's name or "" if unknown.
   pub fn variant_name(self) -> Option<&'static str> {
@@ -322,6 +223,9 @@ impl ResourceKind {
       Self::Iron => Some("Iron"),
       Self::Copper => Some("Copper"),
       Self::Energy => Some("Energy"),
+      Self::Stone => Some("Stone"),
+      Self::Tree => Some("Tree"),
+      Self::Water => Some("Water"),
       _ => None,
     }
   }
@@ -379,18 +283,15 @@ impl ::flatbuffers::SimpleToVerifyInSlice for ResourceKind {}
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 pub const ENUM_MIN_BUILDING_KIND: i8 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_BUILDING_KIND: i8 = 7;
+pub const ENUM_MAX_BUILDING_KIND: i8 = 4;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 #[allow(non_camel_case_types)]
-pub const ENUM_VALUES_BUILDING_KIND: [BuildingKind; 8] = [
+pub const ENUM_VALUES_BUILDING_KIND: [BuildingKind; 5] = [
   BuildingKind::None,
-  BuildingKind::Core,
   BuildingKind::Miner,
   BuildingKind::Storage,
   BuildingKind::Solar,
-  BuildingKind::Relay,
-  BuildingKind::Wall,
-  BuildingKind::Turret,
+  BuildingKind::Assembler,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -399,37 +300,28 @@ pub struct BuildingKind(pub i8);
 #[allow(non_upper_case_globals)]
 impl BuildingKind {
   pub const None: Self = Self(0);
-  pub const Core: Self = Self(1);
-  pub const Miner: Self = Self(2);
-  pub const Storage: Self = Self(3);
-  pub const Solar: Self = Self(4);
-  pub const Relay: Self = Self(5);
-  pub const Wall: Self = Self(6);
-  pub const Turret: Self = Self(7);
+  pub const Miner: Self = Self(1);
+  pub const Storage: Self = Self(2);
+  pub const Solar: Self = Self(3);
+  pub const Assembler: Self = Self(4);
 
   pub const ENUM_MIN: i8 = 0;
-  pub const ENUM_MAX: i8 = 7;
+  pub const ENUM_MAX: i8 = 4;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::None,
-    Self::Core,
     Self::Miner,
     Self::Storage,
     Self::Solar,
-    Self::Relay,
-    Self::Wall,
-    Self::Turret,
+    Self::Assembler,
   ];
   /// Returns the variant's name or "" if unknown.
   pub fn variant_name(self) -> Option<&'static str> {
     match self {
       Self::None => Some("None"),
-      Self::Core => Some("Core"),
       Self::Miner => Some("Miner"),
       Self::Storage => Some("Storage"),
       Self::Solar => Some("Solar"),
-      Self::Relay => Some("Relay"),
-      Self::Wall => Some("Wall"),
-      Self::Turret => Some("Turret"),
+      Self::Assembler => Some("Assembler"),
       _ => None,
     }
   }
@@ -588,286 +480,6 @@ impl<'a> ::flatbuffers::Verifiable for EntityKind {
 }
 
 impl ::flatbuffers::SimpleToVerifyInSlice for EntityKind {}
-#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MIN_MONSTER_KIND: i8 = 0;
-#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_MONSTER_KIND: i8 = 3;
-#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-#[allow(non_camel_case_types)]
-pub const ENUM_VALUES_MONSTER_KIND: [MonsterKind; 4] = [
-  MonsterKind::Unknown,
-  MonsterKind::Drone,
-  MonsterKind::Swarm,
-  MonsterKind::Guardian,
-];
-
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-#[repr(transparent)]
-pub struct MonsterKind(pub i8);
-#[allow(non_upper_case_globals)]
-impl MonsterKind {
-  pub const Unknown: Self = Self(0);
-  pub const Drone: Self = Self(1);
-  pub const Swarm: Self = Self(2);
-  pub const Guardian: Self = Self(3);
-
-  pub const ENUM_MIN: i8 = 0;
-  pub const ENUM_MAX: i8 = 3;
-  pub const ENUM_VALUES: &'static [Self] = &[
-    Self::Unknown,
-    Self::Drone,
-    Self::Swarm,
-    Self::Guardian,
-  ];
-  /// Returns the variant's name or "" if unknown.
-  pub fn variant_name(self) -> Option<&'static str> {
-    match self {
-      Self::Unknown => Some("Unknown"),
-      Self::Drone => Some("Drone"),
-      Self::Swarm => Some("Swarm"),
-      Self::Guardian => Some("Guardian"),
-      _ => None,
-    }
-  }
-}
-impl ::core::fmt::Debug for MonsterKind {
-  fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-    if let Some(name) = self.variant_name() {
-      f.write_str(name)
-    } else {
-      f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
-    }
-  }
-}
-impl<'a> ::flatbuffers::Follow<'a> for MonsterKind {
-  type Inner = Self;
-  #[inline]
-  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
-    let b = unsafe { ::flatbuffers::read_scalar_at::<i8>(buf, loc) };
-    Self(b)
-  }
-}
-
-impl ::flatbuffers::Push for MonsterKind {
-    type Output = MonsterKind;
-    #[inline]
-    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-        unsafe { ::flatbuffers::emplace_scalar::<i8>(dst, self.0) };
-    }
-}
-
-impl ::flatbuffers::EndianScalar for MonsterKind {
-  type Scalar = i8;
-  #[inline]
-  fn to_little_endian(self) -> i8 {
-    self.0.to_le()
-  }
-  #[inline]
-  #[allow(clippy::wrong_self_convention)]
-  fn from_little_endian(v: i8) -> Self {
-    let b = i8::from_le(v);
-    Self(b)
-  }
-}
-
-impl<'a> ::flatbuffers::Verifiable for MonsterKind {
-  #[inline]
-  fn run_verifier(
-    v: &mut ::flatbuffers::Verifier, pos: usize
-  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
-    i8::run_verifier(v, pos)
-  }
-}
-
-impl ::flatbuffers::SimpleToVerifyInSlice for MonsterKind {}
-#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MIN_ENVIRONMENT_EVENT_KIND: i8 = 0;
-#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_ENVIRONMENT_EVENT_KIND: i8 = 4;
-#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-#[allow(non_camel_case_types)]
-pub const ENUM_VALUES_ENVIRONMENT_EVENT_KIND: [EnvironmentEventKind; 5] = [
-  EnvironmentEventKind::Unknown,
-  EnvironmentEventKind::Storm,
-  EnvironmentEventKind::Radiation,
-  EnvironmentEventKind::Meteor,
-  EnvironmentEventKind::ResourceSurge,
-];
-
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-#[repr(transparent)]
-pub struct EnvironmentEventKind(pub i8);
-#[allow(non_upper_case_globals)]
-impl EnvironmentEventKind {
-  pub const Unknown: Self = Self(0);
-  pub const Storm: Self = Self(1);
-  pub const Radiation: Self = Self(2);
-  pub const Meteor: Self = Self(3);
-  pub const ResourceSurge: Self = Self(4);
-
-  pub const ENUM_MIN: i8 = 0;
-  pub const ENUM_MAX: i8 = 4;
-  pub const ENUM_VALUES: &'static [Self] = &[
-    Self::Unknown,
-    Self::Storm,
-    Self::Radiation,
-    Self::Meteor,
-    Self::ResourceSurge,
-  ];
-  /// Returns the variant's name or "" if unknown.
-  pub fn variant_name(self) -> Option<&'static str> {
-    match self {
-      Self::Unknown => Some("Unknown"),
-      Self::Storm => Some("Storm"),
-      Self::Radiation => Some("Radiation"),
-      Self::Meteor => Some("Meteor"),
-      Self::ResourceSurge => Some("ResourceSurge"),
-      _ => None,
-    }
-  }
-}
-impl ::core::fmt::Debug for EnvironmentEventKind {
-  fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-    if let Some(name) = self.variant_name() {
-      f.write_str(name)
-    } else {
-      f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
-    }
-  }
-}
-impl<'a> ::flatbuffers::Follow<'a> for EnvironmentEventKind {
-  type Inner = Self;
-  #[inline]
-  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
-    let b = unsafe { ::flatbuffers::read_scalar_at::<i8>(buf, loc) };
-    Self(b)
-  }
-}
-
-impl ::flatbuffers::Push for EnvironmentEventKind {
-    type Output = EnvironmentEventKind;
-    #[inline]
-    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-        unsafe { ::flatbuffers::emplace_scalar::<i8>(dst, self.0) };
-    }
-}
-
-impl ::flatbuffers::EndianScalar for EnvironmentEventKind {
-  type Scalar = i8;
-  #[inline]
-  fn to_little_endian(self) -> i8 {
-    self.0.to_le()
-  }
-  #[inline]
-  #[allow(clippy::wrong_self_convention)]
-  fn from_little_endian(v: i8) -> Self {
-    let b = i8::from_le(v);
-    Self(b)
-  }
-}
-
-impl<'a> ::flatbuffers::Verifiable for EnvironmentEventKind {
-  #[inline]
-  fn run_verifier(
-    v: &mut ::flatbuffers::Verifier, pos: usize
-  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
-    i8::run_verifier(v, pos)
-  }
-}
-
-impl ::flatbuffers::SimpleToVerifyInSlice for EnvironmentEventKind {}
-#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MIN_POWER_MODE: i8 = 0;
-#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_POWER_MODE: i8 = 3;
-#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-#[allow(non_camel_case_types)]
-pub const ENUM_VALUES_POWER_MODE: [PowerMode; 4] = [
-  PowerMode::Normal,
-  PowerMode::LowPower,
-  PowerMode::Performance,
-  PowerMode::Emergency,
-];
-
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-#[repr(transparent)]
-pub struct PowerMode(pub i8);
-#[allow(non_upper_case_globals)]
-impl PowerMode {
-  pub const Normal: Self = Self(0);
-  pub const LowPower: Self = Self(1);
-  pub const Performance: Self = Self(2);
-  pub const Emergency: Self = Self(3);
-
-  pub const ENUM_MIN: i8 = 0;
-  pub const ENUM_MAX: i8 = 3;
-  pub const ENUM_VALUES: &'static [Self] = &[
-    Self::Normal,
-    Self::LowPower,
-    Self::Performance,
-    Self::Emergency,
-  ];
-  /// Returns the variant's name or "" if unknown.
-  pub fn variant_name(self) -> Option<&'static str> {
-    match self {
-      Self::Normal => Some("Normal"),
-      Self::LowPower => Some("LowPower"),
-      Self::Performance => Some("Performance"),
-      Self::Emergency => Some("Emergency"),
-      _ => None,
-    }
-  }
-}
-impl ::core::fmt::Debug for PowerMode {
-  fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-    if let Some(name) = self.variant_name() {
-      f.write_str(name)
-    } else {
-      f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
-    }
-  }
-}
-impl<'a> ::flatbuffers::Follow<'a> for PowerMode {
-  type Inner = Self;
-  #[inline]
-  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
-    let b = unsafe { ::flatbuffers::read_scalar_at::<i8>(buf, loc) };
-    Self(b)
-  }
-}
-
-impl ::flatbuffers::Push for PowerMode {
-    type Output = PowerMode;
-    #[inline]
-    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-        unsafe { ::flatbuffers::emplace_scalar::<i8>(dst, self.0) };
-    }
-}
-
-impl ::flatbuffers::EndianScalar for PowerMode {
-  type Scalar = i8;
-  #[inline]
-  fn to_little_endian(self) -> i8 {
-    self.0.to_le()
-  }
-  #[inline]
-  #[allow(clippy::wrong_self_convention)]
-  fn from_little_endian(v: i8) -> Self {
-    let b = i8::from_le(v);
-    Self(b)
-  }
-}
-
-impl<'a> ::flatbuffers::Verifiable for PowerMode {
-  #[inline]
-  fn run_verifier(
-    v: &mut ::flatbuffers::Verifier, pos: usize
-  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
-    i8::run_verifier(v, pos)
-  }
-}
-
-impl ::flatbuffers::SimpleToVerifyInSlice for PowerMode {}
 // struct Vec2I, aligned to 4
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq)]
@@ -1268,9 +880,7 @@ impl<'a> Building<'a> {
   pub const VT_ID: ::flatbuffers::VOffsetT = 4;
   pub const VT_KIND: ::flatbuffers::VOffsetT = 6;
   pub const VT_OWNER_ID: ::flatbuffers::VOffsetT = 8;
-  pub const VT_HP: ::flatbuffers::VOffsetT = 10;
-  pub const VT_MAX_HP: ::flatbuffers::VOffsetT = 12;
-  pub const VT_POWER: ::flatbuffers::VOffsetT = 14;
+  pub const VT_POWER: ::flatbuffers::VOffsetT = 10;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -1285,8 +895,6 @@ impl<'a> Building<'a> {
     builder.add_owner_id(args.owner_id);
     builder.add_id(args.id);
     builder.add_power(args.power);
-    builder.add_max_hp(args.max_hp);
-    builder.add_hp(args.hp);
     builder.add_kind(args.kind);
     builder.finish()
   }
@@ -1314,20 +922,6 @@ impl<'a> Building<'a> {
     unsafe { self._tab.get::<u64>(Building::VT_OWNER_ID, Some(0)).unwrap()}
   }
   #[inline]
-  pub fn hp(&self) -> u32 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Building::VT_HP, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn max_hp(&self) -> u32 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Building::VT_MAX_HP, Some(0)).unwrap()}
-  }
-  #[inline]
   pub fn power(&self) -> i32 {
     // Safety:
     // Created from valid Table for this object
@@ -1345,8 +939,6 @@ impl ::flatbuffers::Verifiable for Building<'_> {
      .visit_field::<u64>("id", Self::VT_ID, false)?
      .visit_field::<BuildingKind>("kind", Self::VT_KIND, false)?
      .visit_field::<u64>("owner_id", Self::VT_OWNER_ID, false)?
-     .visit_field::<u32>("hp", Self::VT_HP, false)?
-     .visit_field::<u32>("max_hp", Self::VT_MAX_HP, false)?
      .visit_field::<i32>("power", Self::VT_POWER, false)?
      .finish();
     Ok(())
@@ -1356,8 +948,6 @@ pub struct BuildingArgs {
     pub id: u64,
     pub kind: BuildingKind,
     pub owner_id: u64,
-    pub hp: u32,
-    pub max_hp: u32,
     pub power: i32,
 }
 impl<'a> Default for BuildingArgs {
@@ -1367,8 +957,6 @@ impl<'a> Default for BuildingArgs {
       id: 0,
       kind: BuildingKind::None,
       owner_id: 0,
-      hp: 0,
-      max_hp: 0,
       power: 0,
     }
   }
@@ -1390,14 +978,6 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> BuildingBuilder<'a, 'b, A> {
   #[inline]
   pub fn add_owner_id(&mut self, owner_id: u64) {
     self.fbb_.push_slot::<u64>(Building::VT_OWNER_ID, owner_id, 0);
-  }
-  #[inline]
-  pub fn add_hp(&mut self, hp: u32) {
-    self.fbb_.push_slot::<u32>(Building::VT_HP, hp, 0);
-  }
-  #[inline]
-  pub fn add_max_hp(&mut self, max_hp: u32) {
-    self.fbb_.push_slot::<u32>(Building::VT_MAX_HP, max_hp, 0);
   }
   #[inline]
   pub fn add_power(&mut self, power: i32) {
@@ -1424,8 +1004,6 @@ impl ::core::fmt::Debug for Building<'_> {
       ds.field("id", &self.id());
       ds.field("kind", &self.kind());
       ds.field("owner_id", &self.owner_id());
-      ds.field("hp", &self.hp());
-      ds.field("max_hp", &self.max_hp());
       ds.field("power", &self.power());
       ds.finish()
   }
@@ -1447,12 +1025,9 @@ impl<'a> ::flatbuffers::Follow<'a> for Tile<'a> {
 
 impl<'a> Tile<'a> {
   pub const VT_POSITION: ::flatbuffers::VOffsetT = 4;
-  pub const VT_BASE_TERRAIN: ::flatbuffers::VOffsetT = 6;
-  pub const VT_TERRAIN: ::flatbuffers::VOffsetT = 8;
-  pub const VT_RESOURCE: ::flatbuffers::VOffsetT = 10;
-  pub const VT_BUILDING: ::flatbuffers::VOffsetT = 12;
-  pub const VT_OWNER_ID: ::flatbuffers::VOffsetT = 14;
-  pub const VT_DANGER_LEVEL: ::flatbuffers::VOffsetT = 16;
+  pub const VT_RESOURCE: ::flatbuffers::VOffsetT = 6;
+  pub const VT_BUILDING: ::flatbuffers::VOffsetT = 8;
+  pub const VT_OWNER_ID: ::flatbuffers::VOffsetT = 10;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -1468,9 +1043,6 @@ impl<'a> Tile<'a> {
     if let Some(x) = args.building { builder.add_building(x); }
     if let Some(x) = args.resource { builder.add_resource(x); }
     if let Some(x) = args.position { builder.add_position(x); }
-    builder.add_danger_level(args.danger_level);
-    builder.add_terrain(args.terrain);
-    builder.add_base_terrain(args.base_terrain);
     builder.finish()
   }
 
@@ -1481,20 +1053,6 @@ impl<'a> Tile<'a> {
     // Created from valid Table for this object
     // which contains a valid value in this slot
     unsafe { self._tab.get::<Vec2I>(Tile::VT_POSITION, None)}
-  }
-  #[inline]
-  pub fn base_terrain(&self) -> TerrainKind {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<TerrainKind>(Tile::VT_BASE_TERRAIN, Some(TerrainKind::Empty)).unwrap()}
-  }
-  #[inline]
-  pub fn terrain(&self) -> TerrainKind {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<TerrainKind>(Tile::VT_TERRAIN, Some(TerrainKind::Empty)).unwrap()}
   }
   #[inline]
   pub fn resource(&self) -> Option<&'a ResourceStack> {
@@ -1517,13 +1075,6 @@ impl<'a> Tile<'a> {
     // which contains a valid value in this slot
     unsafe { self._tab.get::<u64>(Tile::VT_OWNER_ID, Some(0)).unwrap()}
   }
-  #[inline]
-  pub fn danger_level(&self) -> u16 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u16>(Tile::VT_DANGER_LEVEL, Some(0)).unwrap()}
-  }
 }
 
 impl ::flatbuffers::Verifiable for Tile<'_> {
@@ -1533,36 +1084,27 @@ impl ::flatbuffers::Verifiable for Tile<'_> {
   ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
     v.visit_table(pos)?
      .visit_field::<Vec2I>("position", Self::VT_POSITION, false)?
-     .visit_field::<TerrainKind>("base_terrain", Self::VT_BASE_TERRAIN, false)?
-     .visit_field::<TerrainKind>("terrain", Self::VT_TERRAIN, false)?
      .visit_field::<ResourceStack>("resource", Self::VT_RESOURCE, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<Building>>("building", Self::VT_BUILDING, false)?
      .visit_field::<u64>("owner_id", Self::VT_OWNER_ID, false)?
-     .visit_field::<u16>("danger_level", Self::VT_DANGER_LEVEL, false)?
      .finish();
     Ok(())
   }
 }
 pub struct TileArgs<'a> {
     pub position: Option<&'a Vec2I>,
-    pub base_terrain: TerrainKind,
-    pub terrain: TerrainKind,
     pub resource: Option<&'a ResourceStack>,
     pub building: Option<::flatbuffers::WIPOffset<Building<'a>>>,
     pub owner_id: u64,
-    pub danger_level: u16,
 }
 impl<'a> Default for TileArgs<'a> {
   #[inline]
   fn default() -> Self {
     TileArgs {
       position: None,
-      base_terrain: TerrainKind::Empty,
-      terrain: TerrainKind::Empty,
       resource: None,
       building: None,
       owner_id: 0,
-      danger_level: 0,
     }
   }
 }
@@ -1577,14 +1119,6 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> TileBuilder<'a, 'b, A> {
     self.fbb_.push_slot_always::<&Vec2I>(Tile::VT_POSITION, position);
   }
   #[inline]
-  pub fn add_base_terrain(&mut self, base_terrain: TerrainKind) {
-    self.fbb_.push_slot::<TerrainKind>(Tile::VT_BASE_TERRAIN, base_terrain, TerrainKind::Empty);
-  }
-  #[inline]
-  pub fn add_terrain(&mut self, terrain: TerrainKind) {
-    self.fbb_.push_slot::<TerrainKind>(Tile::VT_TERRAIN, terrain, TerrainKind::Empty);
-  }
-  #[inline]
   pub fn add_resource(&mut self, resource: &ResourceStack) {
     self.fbb_.push_slot_always::<&ResourceStack>(Tile::VT_RESOURCE, resource);
   }
@@ -1595,10 +1129,6 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> TileBuilder<'a, 'b, A> {
   #[inline]
   pub fn add_owner_id(&mut self, owner_id: u64) {
     self.fbb_.push_slot::<u64>(Tile::VT_OWNER_ID, owner_id, 0);
-  }
-  #[inline]
-  pub fn add_danger_level(&mut self, danger_level: u16) {
-    self.fbb_.push_slot::<u16>(Tile::VT_DANGER_LEVEL, danger_level, 0);
   }
   #[inline]
   pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> TileBuilder<'a, 'b, A> {
@@ -1619,12 +1149,9 @@ impl ::core::fmt::Debug for Tile<'_> {
   fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
     let mut ds = f.debug_struct("Tile");
       ds.field("position", &self.position());
-      ds.field("base_terrain", &self.base_terrain());
-      ds.field("terrain", &self.terrain());
       ds.field("resource", &self.resource());
       ds.field("building", &self.building());
       ds.field("owner_id", &self.owner_id());
-      ds.field("danger_level", &self.danger_level());
       ds.finish()
   }
 }
@@ -1645,13 +1172,8 @@ impl<'a> ::flatbuffers::Follow<'a> for Entity<'a> {
 
 impl<'a> Entity<'a> {
   pub const VT_ID: ::flatbuffers::VOffsetT = 4;
-  pub const VT_KIND: ::flatbuffers::VOffsetT = 6;
-  pub const VT_POSITION: ::flatbuffers::VOffsetT = 8;
-  pub const VT_HP: ::flatbuffers::VOffsetT = 10;
-  pub const VT_MAX_HP: ::flatbuffers::VOffsetT = 12;
-  pub const VT_ENERGY: ::flatbuffers::VOffsetT = 14;
-  pub const VT_CARGO: ::flatbuffers::VOffsetT = 16;
-  pub const VT_COOLDOWN_UNTIL_TICK: ::flatbuffers::VOffsetT = 18;
+  pub const VT_POSITION: ::flatbuffers::VOffsetT = 6;
+  pub const VT_CARGO: ::flatbuffers::VOffsetT = 8;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -1663,14 +1185,9 @@ impl<'a> Entity<'a> {
     args: &'args EntityArgs<'args>
   ) -> ::flatbuffers::WIPOffset<Entity<'bldr>> {
     let mut builder = EntityBuilder::new(_fbb);
-    builder.add_cooldown_until_tick(args.cooldown_until_tick);
     builder.add_id(args.id);
     if let Some(x) = args.cargo { builder.add_cargo(x); }
-    builder.add_energy(args.energy);
-    builder.add_max_hp(args.max_hp);
-    builder.add_hp(args.hp);
     if let Some(x) = args.position { builder.add_position(x); }
-    builder.add_kind(args.kind);
     builder.finish()
   }
 
@@ -1683,13 +1200,6 @@ impl<'a> Entity<'a> {
     unsafe { self._tab.get::<u64>(Entity::VT_ID, Some(0)).unwrap()}
   }
   #[inline]
-  pub fn kind(&self) -> EntityKind {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<EntityKind>(Entity::VT_KIND, Some(EntityKind::Core)).unwrap()}
-  }
-  #[inline]
   pub fn position(&self) -> Option<&'a Vec2I> {
     // Safety:
     // Created from valid Table for this object
@@ -1697,39 +1207,11 @@ impl<'a> Entity<'a> {
     unsafe { self._tab.get::<Vec2I>(Entity::VT_POSITION, None)}
   }
   #[inline]
-  pub fn hp(&self) -> u32 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Entity::VT_HP, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn max_hp(&self) -> u32 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Entity::VT_MAX_HP, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn energy(&self) -> u32 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Entity::VT_ENERGY, Some(0)).unwrap()}
-  }
-  #[inline]
   pub fn cargo(&self) -> Option<::flatbuffers::Vector<'a, ResourceStack>> {
     // Safety:
     // Created from valid Table for this object
     // which contains a valid value in this slot
     unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ResourceStack>>>(Entity::VT_CARGO, None)}
-  }
-  #[inline]
-  pub fn cooldown_until_tick(&self) -> u64 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u64>(Entity::VT_COOLDOWN_UNTIL_TICK, Some(0)).unwrap()}
   }
 }
 
@@ -1740,39 +1222,24 @@ impl ::flatbuffers::Verifiable for Entity<'_> {
   ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
     v.visit_table(pos)?
      .visit_field::<u64>("id", Self::VT_ID, false)?
-     .visit_field::<EntityKind>("kind", Self::VT_KIND, false)?
      .visit_field::<Vec2I>("position", Self::VT_POSITION, false)?
-     .visit_field::<u32>("hp", Self::VT_HP, false)?
-     .visit_field::<u32>("max_hp", Self::VT_MAX_HP, false)?
-     .visit_field::<u32>("energy", Self::VT_ENERGY, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ResourceStack>>>("cargo", Self::VT_CARGO, false)?
-     .visit_field::<u64>("cooldown_until_tick", Self::VT_COOLDOWN_UNTIL_TICK, false)?
      .finish();
     Ok(())
   }
 }
 pub struct EntityArgs<'a> {
     pub id: u64,
-    pub kind: EntityKind,
     pub position: Option<&'a Vec2I>,
-    pub hp: u32,
-    pub max_hp: u32,
-    pub energy: u32,
     pub cargo: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ResourceStack>>>,
-    pub cooldown_until_tick: u64,
 }
 impl<'a> Default for EntityArgs<'a> {
   #[inline]
   fn default() -> Self {
     EntityArgs {
       id: 0,
-      kind: EntityKind::Core,
       position: None,
-      hp: 0,
-      max_hp: 0,
-      energy: 0,
       cargo: None,
-      cooldown_until_tick: 0,
     }
   }
 }
@@ -1787,32 +1254,12 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> EntityBuilder<'a, 'b, A> {
     self.fbb_.push_slot::<u64>(Entity::VT_ID, id, 0);
   }
   #[inline]
-  pub fn add_kind(&mut self, kind: EntityKind) {
-    self.fbb_.push_slot::<EntityKind>(Entity::VT_KIND, kind, EntityKind::Core);
-  }
-  #[inline]
   pub fn add_position(&mut self, position: &Vec2I) {
     self.fbb_.push_slot_always::<&Vec2I>(Entity::VT_POSITION, position);
   }
   #[inline]
-  pub fn add_hp(&mut self, hp: u32) {
-    self.fbb_.push_slot::<u32>(Entity::VT_HP, hp, 0);
-  }
-  #[inline]
-  pub fn add_max_hp(&mut self, max_hp: u32) {
-    self.fbb_.push_slot::<u32>(Entity::VT_MAX_HP, max_hp, 0);
-  }
-  #[inline]
-  pub fn add_energy(&mut self, energy: u32) {
-    self.fbb_.push_slot::<u32>(Entity::VT_ENERGY, energy, 0);
-  }
-  #[inline]
   pub fn add_cargo(&mut self, cargo: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ResourceStack>>) {
     self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Entity::VT_CARGO, cargo);
-  }
-  #[inline]
-  pub fn add_cooldown_until_tick(&mut self, cooldown_until_tick: u64) {
-    self.fbb_.push_slot::<u64>(Entity::VT_COOLDOWN_UNTIL_TICK, cooldown_until_tick, 0);
   }
   #[inline]
   pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> EntityBuilder<'a, 'b, A> {
@@ -1833,556 +1280,8 @@ impl ::core::fmt::Debug for Entity<'_> {
   fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
     let mut ds = f.debug_struct("Entity");
       ds.field("id", &self.id());
-      ds.field("kind", &self.kind());
       ds.field("position", &self.position());
-      ds.field("hp", &self.hp());
-      ds.field("max_hp", &self.max_hp());
-      ds.field("energy", &self.energy());
       ds.field("cargo", &self.cargo());
-      ds.field("cooldown_until_tick", &self.cooldown_until_tick());
-      ds.finish()
-  }
-}
-pub enum MonsterOffset {}
-#[derive(Copy, Clone, PartialEq)]
-
-pub struct Monster<'a> {
-  pub _tab: ::flatbuffers::Table<'a>,
-}
-
-impl<'a> ::flatbuffers::Follow<'a> for Monster<'a> {
-  type Inner = Monster<'a>;
-  #[inline]
-  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
-    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
-  }
-}
-
-impl<'a> Monster<'a> {
-  pub const VT_ID: ::flatbuffers::VOffsetT = 4;
-  pub const VT_KIND: ::flatbuffers::VOffsetT = 6;
-  pub const VT_POSITION: ::flatbuffers::VOffsetT = 8;
-  pub const VT_HP: ::flatbuffers::VOffsetT = 10;
-  pub const VT_MAX_HP: ::flatbuffers::VOffsetT = 12;
-  pub const VT_TARGET_ENTITY_ID: ::flatbuffers::VOffsetT = 14;
-
-  #[inline]
-  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
-    Monster { _tab: table }
-  }
-  #[allow(unused_mut)]
-  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-    args: &'args MonsterArgs<'args>
-  ) -> ::flatbuffers::WIPOffset<Monster<'bldr>> {
-    let mut builder = MonsterBuilder::new(_fbb);
-    builder.add_target_entity_id(args.target_entity_id);
-    builder.add_id(args.id);
-    builder.add_max_hp(args.max_hp);
-    builder.add_hp(args.hp);
-    if let Some(x) = args.position { builder.add_position(x); }
-    builder.add_kind(args.kind);
-    builder.finish()
-  }
-
-
-  #[inline]
-  pub fn id(&self) -> u64 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u64>(Monster::VT_ID, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn kind(&self) -> MonsterKind {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<MonsterKind>(Monster::VT_KIND, Some(MonsterKind::Unknown)).unwrap()}
-  }
-  #[inline]
-  pub fn position(&self) -> Option<&'a Vec2I> {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<Vec2I>(Monster::VT_POSITION, None)}
-  }
-  #[inline]
-  pub fn hp(&self) -> u32 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Monster::VT_HP, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn max_hp(&self) -> u32 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Monster::VT_MAX_HP, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn target_entity_id(&self) -> u64 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u64>(Monster::VT_TARGET_ENTITY_ID, Some(0)).unwrap()}
-  }
-}
-
-impl ::flatbuffers::Verifiable for Monster<'_> {
-  #[inline]
-  fn run_verifier(
-    v: &mut ::flatbuffers::Verifier, pos: usize
-  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
-    v.visit_table(pos)?
-     .visit_field::<u64>("id", Self::VT_ID, false)?
-     .visit_field::<MonsterKind>("kind", Self::VT_KIND, false)?
-     .visit_field::<Vec2I>("position", Self::VT_POSITION, false)?
-     .visit_field::<u32>("hp", Self::VT_HP, false)?
-     .visit_field::<u32>("max_hp", Self::VT_MAX_HP, false)?
-     .visit_field::<u64>("target_entity_id", Self::VT_TARGET_ENTITY_ID, false)?
-     .finish();
-    Ok(())
-  }
-}
-pub struct MonsterArgs<'a> {
-    pub id: u64,
-    pub kind: MonsterKind,
-    pub position: Option<&'a Vec2I>,
-    pub hp: u32,
-    pub max_hp: u32,
-    pub target_entity_id: u64,
-}
-impl<'a> Default for MonsterArgs<'a> {
-  #[inline]
-  fn default() -> Self {
-    MonsterArgs {
-      id: 0,
-      kind: MonsterKind::Unknown,
-      position: None,
-      hp: 0,
-      max_hp: 0,
-      target_entity_id: 0,
-    }
-  }
-}
-
-pub struct MonsterBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
-  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
-  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
-}
-impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> MonsterBuilder<'a, 'b, A> {
-  #[inline]
-  pub fn add_id(&mut self, id: u64) {
-    self.fbb_.push_slot::<u64>(Monster::VT_ID, id, 0);
-  }
-  #[inline]
-  pub fn add_kind(&mut self, kind: MonsterKind) {
-    self.fbb_.push_slot::<MonsterKind>(Monster::VT_KIND, kind, MonsterKind::Unknown);
-  }
-  #[inline]
-  pub fn add_position(&mut self, position: &Vec2I) {
-    self.fbb_.push_slot_always::<&Vec2I>(Monster::VT_POSITION, position);
-  }
-  #[inline]
-  pub fn add_hp(&mut self, hp: u32) {
-    self.fbb_.push_slot::<u32>(Monster::VT_HP, hp, 0);
-  }
-  #[inline]
-  pub fn add_max_hp(&mut self, max_hp: u32) {
-    self.fbb_.push_slot::<u32>(Monster::VT_MAX_HP, max_hp, 0);
-  }
-  #[inline]
-  pub fn add_target_entity_id(&mut self, target_entity_id: u64) {
-    self.fbb_.push_slot::<u64>(Monster::VT_TARGET_ENTITY_ID, target_entity_id, 0);
-  }
-  #[inline]
-  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> MonsterBuilder<'a, 'b, A> {
-    let start = _fbb.start_table();
-    MonsterBuilder {
-      fbb_: _fbb,
-      start_: start,
-    }
-  }
-  #[inline]
-  pub fn finish(self) -> ::flatbuffers::WIPOffset<Monster<'a>> {
-    let o = self.fbb_.end_table(self.start_);
-    ::flatbuffers::WIPOffset::new(o.value())
-  }
-}
-
-impl ::core::fmt::Debug for Monster<'_> {
-  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-    let mut ds = f.debug_struct("Monster");
-      ds.field("id", &self.id());
-      ds.field("kind", &self.kind());
-      ds.field("position", &self.position());
-      ds.field("hp", &self.hp());
-      ds.field("max_hp", &self.max_hp());
-      ds.field("target_entity_id", &self.target_entity_id());
-      ds.finish()
-  }
-}
-pub enum EnvironmentEventOffset {}
-#[derive(Copy, Clone, PartialEq)]
-
-pub struct EnvironmentEvent<'a> {
-  pub _tab: ::flatbuffers::Table<'a>,
-}
-
-impl<'a> ::flatbuffers::Follow<'a> for EnvironmentEvent<'a> {
-  type Inner = EnvironmentEvent<'a>;
-  #[inline]
-  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
-    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
-  }
-}
-
-impl<'a> EnvironmentEvent<'a> {
-  pub const VT_ID: ::flatbuffers::VOffsetT = 4;
-  pub const VT_KIND: ::flatbuffers::VOffsetT = 6;
-  pub const VT_CENTER: ::flatbuffers::VOffsetT = 8;
-  pub const VT_RADIUS: ::flatbuffers::VOffsetT = 10;
-  pub const VT_STARTS_AT_TICK: ::flatbuffers::VOffsetT = 12;
-  pub const VT_ENDS_AT_TICK: ::flatbuffers::VOffsetT = 14;
-  pub const VT_INTENSITY: ::flatbuffers::VOffsetT = 16;
-
-  #[inline]
-  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
-    EnvironmentEvent { _tab: table }
-  }
-  #[allow(unused_mut)]
-  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-    args: &'args EnvironmentEventArgs<'args>
-  ) -> ::flatbuffers::WIPOffset<EnvironmentEvent<'bldr>> {
-    let mut builder = EnvironmentEventBuilder::new(_fbb);
-    builder.add_ends_at_tick(args.ends_at_tick);
-    builder.add_starts_at_tick(args.starts_at_tick);
-    builder.add_id(args.id);
-    builder.add_radius(args.radius);
-    if let Some(x) = args.center { builder.add_center(x); }
-    builder.add_intensity(args.intensity);
-    builder.add_kind(args.kind);
-    builder.finish()
-  }
-
-
-  #[inline]
-  pub fn id(&self) -> u64 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u64>(EnvironmentEvent::VT_ID, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn kind(&self) -> EnvironmentEventKind {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<EnvironmentEventKind>(EnvironmentEvent::VT_KIND, Some(EnvironmentEventKind::Unknown)).unwrap()}
-  }
-  #[inline]
-  pub fn center(&self) -> Option<&'a Vec2I> {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<Vec2I>(EnvironmentEvent::VT_CENTER, None)}
-  }
-  #[inline]
-  pub fn radius(&self) -> u32 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(EnvironmentEvent::VT_RADIUS, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn starts_at_tick(&self) -> u64 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u64>(EnvironmentEvent::VT_STARTS_AT_TICK, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn ends_at_tick(&self) -> u64 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u64>(EnvironmentEvent::VT_ENDS_AT_TICK, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn intensity(&self) -> u16 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u16>(EnvironmentEvent::VT_INTENSITY, Some(0)).unwrap()}
-  }
-}
-
-impl ::flatbuffers::Verifiable for EnvironmentEvent<'_> {
-  #[inline]
-  fn run_verifier(
-    v: &mut ::flatbuffers::Verifier, pos: usize
-  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
-    v.visit_table(pos)?
-     .visit_field::<u64>("id", Self::VT_ID, false)?
-     .visit_field::<EnvironmentEventKind>("kind", Self::VT_KIND, false)?
-     .visit_field::<Vec2I>("center", Self::VT_CENTER, false)?
-     .visit_field::<u32>("radius", Self::VT_RADIUS, false)?
-     .visit_field::<u64>("starts_at_tick", Self::VT_STARTS_AT_TICK, false)?
-     .visit_field::<u64>("ends_at_tick", Self::VT_ENDS_AT_TICK, false)?
-     .visit_field::<u16>("intensity", Self::VT_INTENSITY, false)?
-     .finish();
-    Ok(())
-  }
-}
-pub struct EnvironmentEventArgs<'a> {
-    pub id: u64,
-    pub kind: EnvironmentEventKind,
-    pub center: Option<&'a Vec2I>,
-    pub radius: u32,
-    pub starts_at_tick: u64,
-    pub ends_at_tick: u64,
-    pub intensity: u16,
-}
-impl<'a> Default for EnvironmentEventArgs<'a> {
-  #[inline]
-  fn default() -> Self {
-    EnvironmentEventArgs {
-      id: 0,
-      kind: EnvironmentEventKind::Unknown,
-      center: None,
-      radius: 0,
-      starts_at_tick: 0,
-      ends_at_tick: 0,
-      intensity: 0,
-    }
-  }
-}
-
-pub struct EnvironmentEventBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
-  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
-  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
-}
-impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> EnvironmentEventBuilder<'a, 'b, A> {
-  #[inline]
-  pub fn add_id(&mut self, id: u64) {
-    self.fbb_.push_slot::<u64>(EnvironmentEvent::VT_ID, id, 0);
-  }
-  #[inline]
-  pub fn add_kind(&mut self, kind: EnvironmentEventKind) {
-    self.fbb_.push_slot::<EnvironmentEventKind>(EnvironmentEvent::VT_KIND, kind, EnvironmentEventKind::Unknown);
-  }
-  #[inline]
-  pub fn add_center(&mut self, center: &Vec2I) {
-    self.fbb_.push_slot_always::<&Vec2I>(EnvironmentEvent::VT_CENTER, center);
-  }
-  #[inline]
-  pub fn add_radius(&mut self, radius: u32) {
-    self.fbb_.push_slot::<u32>(EnvironmentEvent::VT_RADIUS, radius, 0);
-  }
-  #[inline]
-  pub fn add_starts_at_tick(&mut self, starts_at_tick: u64) {
-    self.fbb_.push_slot::<u64>(EnvironmentEvent::VT_STARTS_AT_TICK, starts_at_tick, 0);
-  }
-  #[inline]
-  pub fn add_ends_at_tick(&mut self, ends_at_tick: u64) {
-    self.fbb_.push_slot::<u64>(EnvironmentEvent::VT_ENDS_AT_TICK, ends_at_tick, 0);
-  }
-  #[inline]
-  pub fn add_intensity(&mut self, intensity: u16) {
-    self.fbb_.push_slot::<u16>(EnvironmentEvent::VT_INTENSITY, intensity, 0);
-  }
-  #[inline]
-  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> EnvironmentEventBuilder<'a, 'b, A> {
-    let start = _fbb.start_table();
-    EnvironmentEventBuilder {
-      fbb_: _fbb,
-      start_: start,
-    }
-  }
-  #[inline]
-  pub fn finish(self) -> ::flatbuffers::WIPOffset<EnvironmentEvent<'a>> {
-    let o = self.fbb_.end_table(self.start_);
-    ::flatbuffers::WIPOffset::new(o.value())
-  }
-}
-
-impl ::core::fmt::Debug for EnvironmentEvent<'_> {
-  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-    let mut ds = f.debug_struct("EnvironmentEvent");
-      ds.field("id", &self.id());
-      ds.field("kind", &self.kind());
-      ds.field("center", &self.center());
-      ds.field("radius", &self.radius());
-      ds.field("starts_at_tick", &self.starts_at_tick());
-      ds.field("ends_at_tick", &self.ends_at_tick());
-      ds.field("intensity", &self.intensity());
-      ds.finish()
-  }
-}
-pub enum SignalOffset {}
-#[derive(Copy, Clone, PartialEq)]
-
-pub struct Signal<'a> {
-  pub _tab: ::flatbuffers::Table<'a>,
-}
-
-impl<'a> ::flatbuffers::Follow<'a> for Signal<'a> {
-  type Inner = Signal<'a>;
-  #[inline]
-  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
-    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
-  }
-}
-
-impl<'a> Signal<'a> {
-  pub const VT_FROM_ENTITY_ID: ::flatbuffers::VOffsetT = 4;
-  pub const VT_TO_ENTITY_ID: ::flatbuffers::VOffsetT = 6;
-  pub const VT_CHANNEL: ::flatbuffers::VOffsetT = 8;
-  pub const VT_SENT_AT_TICK: ::flatbuffers::VOffsetT = 10;
-  pub const VT_PAYLOAD: ::flatbuffers::VOffsetT = 12;
-
-  #[inline]
-  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
-    Signal { _tab: table }
-  }
-  #[allow(unused_mut)]
-  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-    args: &'args SignalArgs<'args>
-  ) -> ::flatbuffers::WIPOffset<Signal<'bldr>> {
-    let mut builder = SignalBuilder::new(_fbb);
-    builder.add_sent_at_tick(args.sent_at_tick);
-    builder.add_to_entity_id(args.to_entity_id);
-    builder.add_from_entity_id(args.from_entity_id);
-    if let Some(x) = args.payload { builder.add_payload(x); }
-    builder.add_channel(args.channel);
-    builder.finish()
-  }
-
-
-  #[inline]
-  pub fn from_entity_id(&self) -> u64 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u64>(Signal::VT_FROM_ENTITY_ID, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn to_entity_id(&self) -> u64 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u64>(Signal::VT_TO_ENTITY_ID, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn channel(&self) -> u32 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(Signal::VT_CHANNEL, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn sent_at_tick(&self) -> u64 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u64>(Signal::VT_SENT_AT_TICK, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn payload(&self) -> Option<::flatbuffers::Vector<'a, u8>> {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, u8>>>(Signal::VT_PAYLOAD, None)}
-  }
-}
-
-impl ::flatbuffers::Verifiable for Signal<'_> {
-  #[inline]
-  fn run_verifier(
-    v: &mut ::flatbuffers::Verifier, pos: usize
-  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
-    v.visit_table(pos)?
-     .visit_field::<u64>("from_entity_id", Self::VT_FROM_ENTITY_ID, false)?
-     .visit_field::<u64>("to_entity_id", Self::VT_TO_ENTITY_ID, false)?
-     .visit_field::<u32>("channel", Self::VT_CHANNEL, false)?
-     .visit_field::<u64>("sent_at_tick", Self::VT_SENT_AT_TICK, false)?
-     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, u8>>>("payload", Self::VT_PAYLOAD, false)?
-     .finish();
-    Ok(())
-  }
-}
-pub struct SignalArgs<'a> {
-    pub from_entity_id: u64,
-    pub to_entity_id: u64,
-    pub channel: u32,
-    pub sent_at_tick: u64,
-    pub payload: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, u8>>>,
-}
-impl<'a> Default for SignalArgs<'a> {
-  #[inline]
-  fn default() -> Self {
-    SignalArgs {
-      from_entity_id: 0,
-      to_entity_id: 0,
-      channel: 0,
-      sent_at_tick: 0,
-      payload: None,
-    }
-  }
-}
-
-pub struct SignalBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
-  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
-  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
-}
-impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> SignalBuilder<'a, 'b, A> {
-  #[inline]
-  pub fn add_from_entity_id(&mut self, from_entity_id: u64) {
-    self.fbb_.push_slot::<u64>(Signal::VT_FROM_ENTITY_ID, from_entity_id, 0);
-  }
-  #[inline]
-  pub fn add_to_entity_id(&mut self, to_entity_id: u64) {
-    self.fbb_.push_slot::<u64>(Signal::VT_TO_ENTITY_ID, to_entity_id, 0);
-  }
-  #[inline]
-  pub fn add_channel(&mut self, channel: u32) {
-    self.fbb_.push_slot::<u32>(Signal::VT_CHANNEL, channel, 0);
-  }
-  #[inline]
-  pub fn add_sent_at_tick(&mut self, sent_at_tick: u64) {
-    self.fbb_.push_slot::<u64>(Signal::VT_SENT_AT_TICK, sent_at_tick, 0);
-  }
-  #[inline]
-  pub fn add_payload(&mut self, payload: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , u8>>) {
-    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Signal::VT_PAYLOAD, payload);
-  }
-  #[inline]
-  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> SignalBuilder<'a, 'b, A> {
-    let start = _fbb.start_table();
-    SignalBuilder {
-      fbb_: _fbb,
-      start_: start,
-    }
-  }
-  #[inline]
-  pub fn finish(self) -> ::flatbuffers::WIPOffset<Signal<'a>> {
-    let o = self.fbb_.end_table(self.start_);
-    ::flatbuffers::WIPOffset::new(o.value())
-  }
-}
-
-impl ::core::fmt::Debug for Signal<'_> {
-  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-    let mut ds = f.debug_struct("Signal");
-      ds.field("from_entity_id", &self.from_entity_id());
-      ds.field("to_entity_id", &self.to_entity_id());
-      ds.field("channel", &self.channel());
-      ds.field("sent_at_tick", &self.sent_at_tick());
-      ds.field("payload", &self.payload());
       ds.finish()
   }
 }
@@ -2567,8 +1466,7 @@ impl<'a> ::flatbuffers::Follow<'a> for ActionLimits<'a> {
 
 impl<'a> ActionLimits<'a> {
   pub const VT_MAX_ACTIONS: ::flatbuffers::VOffsetT = 4;
-  pub const VT_MAX_SIGNAL_BYTES: ::flatbuffers::VOffsetT = 6;
-  pub const VT_MAX_PERSISTENT_MEMORY_BYTES: ::flatbuffers::VOffsetT = 8;
+  pub const VT_MAX_PERSISTENT_MEMORY_BYTES: ::flatbuffers::VOffsetT = 6;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -2581,7 +1479,6 @@ impl<'a> ActionLimits<'a> {
   ) -> ::flatbuffers::WIPOffset<ActionLimits<'bldr>> {
     let mut builder = ActionLimitsBuilder::new(_fbb);
     builder.add_max_persistent_memory_bytes(args.max_persistent_memory_bytes);
-    builder.add_max_signal_bytes(args.max_signal_bytes);
     builder.add_max_actions(args.max_actions);
     builder.finish()
   }
@@ -2593,13 +1490,6 @@ impl<'a> ActionLimits<'a> {
     // Created from valid Table for this object
     // which contains a valid value in this slot
     unsafe { self._tab.get::<u32>(ActionLimits::VT_MAX_ACTIONS, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn max_signal_bytes(&self) -> u32 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u32>(ActionLimits::VT_MAX_SIGNAL_BYTES, Some(0)).unwrap()}
   }
   #[inline]
   pub fn max_persistent_memory_bytes(&self) -> u32 {
@@ -2617,7 +1507,6 @@ impl ::flatbuffers::Verifiable for ActionLimits<'_> {
   ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
     v.visit_table(pos)?
      .visit_field::<u32>("max_actions", Self::VT_MAX_ACTIONS, false)?
-     .visit_field::<u32>("max_signal_bytes", Self::VT_MAX_SIGNAL_BYTES, false)?
      .visit_field::<u32>("max_persistent_memory_bytes", Self::VT_MAX_PERSISTENT_MEMORY_BYTES, false)?
      .finish();
     Ok(())
@@ -2625,7 +1514,6 @@ impl ::flatbuffers::Verifiable for ActionLimits<'_> {
 }
 pub struct ActionLimitsArgs {
     pub max_actions: u32,
-    pub max_signal_bytes: u32,
     pub max_persistent_memory_bytes: u32,
 }
 impl<'a> Default for ActionLimitsArgs {
@@ -2633,7 +1521,6 @@ impl<'a> Default for ActionLimitsArgs {
   fn default() -> Self {
     ActionLimitsArgs {
       max_actions: 0,
-      max_signal_bytes: 0,
       max_persistent_memory_bytes: 0,
     }
   }
@@ -2647,10 +1534,6 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> ActionLimitsBuilder<'a, 'b, A
   #[inline]
   pub fn add_max_actions(&mut self, max_actions: u32) {
     self.fbb_.push_slot::<u32>(ActionLimits::VT_MAX_ACTIONS, max_actions, 0);
-  }
-  #[inline]
-  pub fn add_max_signal_bytes(&mut self, max_signal_bytes: u32) {
-    self.fbb_.push_slot::<u32>(ActionLimits::VT_MAX_SIGNAL_BYTES, max_signal_bytes, 0);
   }
   #[inline]
   pub fn add_max_persistent_memory_bytes(&mut self, max_persistent_memory_bytes: u32) {
@@ -2675,7 +1558,6 @@ impl ::core::fmt::Debug for ActionLimits<'_> {
   fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
     let mut ds = f.debug_struct("ActionLimits");
       ds.field("max_actions", &self.max_actions());
-      ds.field("max_signal_bytes", &self.max_signal_bytes());
       ds.field("max_persistent_memory_bytes", &self.max_persistent_memory_bytes());
       ds.finish()
   }
