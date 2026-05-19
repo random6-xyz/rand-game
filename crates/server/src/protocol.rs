@@ -29,8 +29,6 @@ pub fn build_game_input_payload(
         .map(|entity| entity.position)
         .ok_or("player has no owned entities")?;
     let visible_tiles = world.visible_tiles_for(player_id);
-    let visible_monsters = world.visible_monsters_for(player_id);
-    let environment_events = world.environment_events_for(player_id);
     let runtime_profile = world
         .player_runtime_profile(player_id)
         .ok_or("player has no runtime profile")?;
@@ -53,8 +51,6 @@ pub fn build_game_input_payload(
                         id: building.id,
                         kind: to_fb_building_kind(building.kind),
                         owner_id: building.owner_id,
-                        hp: building.hp,
-                        max_hp: building.max_hp,
                         power: building.power,
                     },
                 )
@@ -63,12 +59,9 @@ pub fn build_game_input_payload(
             &mut fbb,
             &fb::TileArgs {
                 position: Some(&position),
-                base_terrain: to_fb_terrain_kind(tile.base_terrain),
-                terrain: to_fb_terrain_kind(tile.terrain),
                 resource: resource.as_ref(),
                 building,
                 owner_id: tile.owner_id.unwrap_or_default(),
-                danger_level: tile.danger_level,
             },
         );
         tile_offsets.push(tile_offset);
@@ -90,59 +83,18 @@ pub fn build_game_input_payload(
             &mut fbb,
             &fb::EntityArgs {
                 id: entity.id,
-                kind: to_fb_entity_kind(entity.kind),
                 position: Some(&position),
-                hp: entity.hp,
-                max_hp: entity.max_hp,
-                energy: entity.energy,
                 cargo: Some(cargo),
-                cooldown_until_tick: entity.cooldown_until_tick,
             },
         );
         entity_offsets.push(entity_offset);
     }
     let owned_entities = fbb.create_vector(&entity_offsets);
 
-    let mut monster_offsets = Vec::with_capacity(visible_monsters.len());
-    for monster in &visible_monsters {
-        let position = Vec2I::new(monster.position.x, monster.position.y);
-        monster_offsets.push(fb::Monster::create(
-            &mut fbb,
-            &fb::MonsterArgs {
-                id: monster.id,
-                kind: to_fb_monster_kind(monster.kind),
-                position: Some(&position),
-                hp: monster.hp,
-                max_hp: monster.max_hp,
-                target_entity_id: monster.target_entity_id,
-            },
-        ));
-    }
-    let visible_monsters = fbb.create_vector(&monster_offsets);
-
-    let mut event_offsets = Vec::with_capacity(environment_events.len());
-    for event in &environment_events {
-        let center = Vec2I::new(event.center.x, event.center.y);
-        event_offsets.push(fb::EnvironmentEvent::create(
-            &mut fbb,
-            &fb::EnvironmentEventArgs {
-                id: event.id,
-                kind: to_fb_environment_event_kind(event.kind),
-                center: Some(&center),
-                radius: event.radius,
-                starts_at_tick: event.starts_at_tick,
-                ends_at_tick: event.ends_at_tick,
-                intensity: event.intensity,
-            },
-        ));
-    }
-    let environment_events = fbb.create_vector(&event_offsets);
-
     let world_info = WorldInfo::create(
         &mut fbb,
         &WorldInfoArgs {
             tick: world.tick,
-            world_seed: world.world_seed,
             map_id: world.map_id,
             map_kind: to_fb_map_kind(world.map_kind()),
             ruleset_version: 1,
@@ -157,9 +109,6 @@ pub fn build_game_input_payload(
             radius: world.observation_radius,
             visible_tiles: Some(visible_tiles),
             owned_entities: Some(owned_entities),
-            visible_monsters: Some(visible_monsters),
-            environment_events: Some(environment_events),
-            incoming_signals: None,
         },
     );
 
@@ -177,7 +126,6 @@ pub fn build_game_input_payload(
         &mut fbb,
         &ActionLimitsArgs {
             max_actions: debug_max_actions.unwrap_or(runtime_profile.max_actions),
-            max_signal_bytes: runtime_profile.max_signal_bytes,
             max_persistent_memory_bytes: runtime_profile.max_persistent_memory_bytes,
         },
     );
@@ -209,24 +157,12 @@ pub fn to_model_position(position: &Vec2I) -> model::Position {
     model::Position::new(position.x(), position.y())
 }
 
-pub fn to_model_resource_kind(kind: fb::ResourceKind) -> Option<model::ResourceKind> {
-    match kind {
-        fb::ResourceKind::Iron => Some(model::ResourceKind::Iron),
-        fb::ResourceKind::Copper => Some(model::ResourceKind::Copper),
-        fb::ResourceKind::Energy => Some(model::ResourceKind::Energy),
-        _ => None,
-    }
-}
-
 pub fn to_model_building_kind(kind: fb::BuildingKind) -> Option<model::BuildingKind> {
     match kind {
-        fb::BuildingKind::Core => Some(model::BuildingKind::Core),
         fb::BuildingKind::Miner => Some(model::BuildingKind::Miner),
         fb::BuildingKind::Storage => Some(model::BuildingKind::Storage),
         fb::BuildingKind::Solar => Some(model::BuildingKind::Solar),
-        fb::BuildingKind::Relay => Some(model::BuildingKind::Relay),
-        fb::BuildingKind::Wall => Some(model::BuildingKind::Wall),
-        fb::BuildingKind::Turret => Some(model::BuildingKind::Turret),
+        fb::BuildingKind::Assembler => Some(model::BuildingKind::Assembler),
         _ => None,
     }
 }
@@ -236,16 +172,9 @@ pub fn to_fb_resource_kind(kind: model::ResourceKind) -> fb::ResourceKind {
         model::ResourceKind::Iron => fb::ResourceKind::Iron,
         model::ResourceKind::Copper => fb::ResourceKind::Copper,
         model::ResourceKind::Energy => fb::ResourceKind::Energy,
-    }
-}
-
-fn to_fb_terrain_kind(kind: model::TerrainKind) -> fb::TerrainKind {
-    match kind {
-        model::TerrainKind::Plain => fb::TerrainKind::Plain,
-        model::TerrainKind::Rock => fb::TerrainKind::Rock,
-        model::TerrainKind::Water => fb::TerrainKind::Water,
-        model::TerrainKind::Mountain => fb::TerrainKind::Mountain,
-        model::TerrainKind::Ruin => fb::TerrainKind::Ruin,
+        model::ResourceKind::Stone => fb::ResourceKind::Stone,
+        model::ResourceKind::Tree => fb::ResourceKind::Tree,
+        model::ResourceKind::Water => fb::ResourceKind::Water,
     }
 }
 
@@ -254,44 +183,16 @@ fn to_fb_map_kind(kind: model::MapKind) -> fb::MapKind {
         model::MapKind::Resource => fb::MapKind::Resource,
         model::MapKind::Hazard => fb::MapKind::Hazard,
         model::MapKind::Monster => fb::MapKind::Monster,
-        model::MapKind::Event => fb::MapKind::Event,
-        model::MapKind::War => fb::MapKind::War,
-    }
-}
-
-fn to_fb_monster_kind(kind: model::MonsterKind) -> fb::MonsterKind {
-    match kind {
-        model::MonsterKind::Drone => fb::MonsterKind::Drone,
-        model::MonsterKind::Swarm => fb::MonsterKind::Swarm,
-        model::MonsterKind::Guardian => fb::MonsterKind::Guardian,
-    }
-}
-
-fn to_fb_environment_event_kind(kind: model::EnvironmentEventKind) -> fb::EnvironmentEventKind {
-    match kind {
-        model::EnvironmentEventKind::Storm => fb::EnvironmentEventKind::Storm,
-        model::EnvironmentEventKind::Radiation => fb::EnvironmentEventKind::Radiation,
-        model::EnvironmentEventKind::Meteor => fb::EnvironmentEventKind::Meteor,
-        model::EnvironmentEventKind::ResourceSurge => fb::EnvironmentEventKind::ResourceSurge,
     }
 }
 
 fn to_fb_building_kind(kind: model::BuildingKind) -> fb::BuildingKind {
     match kind {
-        model::BuildingKind::Core => fb::BuildingKind::Core,
+        model::BuildingKind::None => fb::BuildingKind::None,
         model::BuildingKind::Miner => fb::BuildingKind::Miner,
         model::BuildingKind::Storage => fb::BuildingKind::Storage,
         model::BuildingKind::Solar => fb::BuildingKind::Solar,
-        model::BuildingKind::Relay => fb::BuildingKind::Relay,
-        model::BuildingKind::Wall => fb::BuildingKind::Wall,
-        model::BuildingKind::Turret => fb::BuildingKind::Turret,
-    }
-}
-
-fn to_fb_entity_kind(kind: model::EntityKind) -> fb::EntityKind {
-    match kind {
-        model::EntityKind::Core => fb::EntityKind::Core,
-        model::EntityKind::Worker => fb::EntityKind::Worker,
+        model::BuildingKind::Assembler => fb::BuildingKind::Assembler,
     }
 }
 

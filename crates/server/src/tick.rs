@@ -154,7 +154,7 @@ fn apply_debug_output_sequentially(
 
     for index in 0..actions.len().min(max_actions) {
         let action = actions.get(index);
-        match rules::validate_debug_action(world, player_id, action) {
+        match rules::validate_action(world, player_id, action) {
             Ok(action) => {
                 let result = world.apply_action(player_id, &action);
                 entries.push(ActionLogEntry {

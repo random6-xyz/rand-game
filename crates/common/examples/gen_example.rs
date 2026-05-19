@@ -58,10 +58,8 @@ fn build_game_input() -> Vec<u8> {
         &mut fbb,
         &BuildingArgs {
             id: 100,
-            kind: BuildingKind::Core,
+            kind: BuildingKind::Storage,
             owner_id: 1,
-            hp: 500,
-            max_hp: 500,
             power: 25,
         },
     );
@@ -72,12 +70,9 @@ fn build_game_input() -> Vec<u8> {
         &mut fbb,
         &TileArgs {
             position: Some(&tile_origin_pos),
-            base_terrain: TerrainKind::Plain,
-            terrain: TerrainKind::Plain,
             resource: Some(&tile_origin_resource),
             building: Some(core_building),
             owner_id: 1,
-            danger_level: 0,
         },
     );
 
@@ -87,12 +82,9 @@ fn build_game_input() -> Vec<u8> {
         &mut fbb,
         &TileArgs {
             position: Some(&tile_rock_pos),
-            base_terrain: TerrainKind::Rock,
-            terrain: TerrainKind::Rock,
             resource: Some(&tile_rock_resource),
             building: None,
             owner_id: 0,
-            danger_level: 1,
         },
     );
 
@@ -105,13 +97,8 @@ fn build_game_input() -> Vec<u8> {
         &mut fbb,
         &EntityArgs {
             id: 200,
-            kind: EntityKind::Worker,
             position: Some(&worker_pos),
-            hp: 90,
-            max_hp: 100,
-            energy: 45,
             cargo: Some(worker_cargo),
-            cooldown_until_tick: 128,
         },
     );
     let owned_entities = fbb.create_vector(&[worker]);
@@ -122,7 +109,6 @@ fn build_game_input() -> Vec<u8> {
         &mut fbb,
         &WorldInfoArgs {
             tick: 123,
-            world_seed: 42,
             map_id: 7,
             map_kind: MapKind::Resource,
             ruleset_version: 1,
@@ -137,9 +123,6 @@ fn build_game_input() -> Vec<u8> {
             radius: 4,
             visible_tiles: Some(visible_tiles),
             owned_entities: Some(owned_entities),
-            visible_monsters: None,
-            environment_events: None,
-            incoming_signals: None,
         },
     );
 
@@ -157,7 +140,6 @@ fn build_game_input() -> Vec<u8> {
         &mut fbb,
         &ActionLimitsArgs {
             max_actions: 8,
-            max_signal_bytes: 256,
             max_persistent_memory_bytes: 4096,
         },
     );
@@ -213,7 +195,6 @@ fn build_game_output() -> Vec<u8> {
 
     let actions = fbb.create_vector(&[move_action, mine_action]);
     let persistent_memory = fbb.create_vector(b"next-memory-state");
-    let debug_message = fbb.create_string("example bot chose move and mine actions");
 
     let game_output = GameOutput::create(
         &mut fbb,
@@ -221,7 +202,6 @@ fn build_game_output() -> Vec<u8> {
             protocol_version: ProtocolVersion::V1,
             actions: Some(actions),
             persistent_memory: Some(persistent_memory),
-            debug_message: Some(debug_message),
         },
     );
 

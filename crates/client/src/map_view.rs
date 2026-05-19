@@ -23,6 +23,8 @@ const MOUNTAIN_COLOR: &str = "\x1b[1;37m";
 const RUIN_COLOR: &str = "\x1b[38;5;94m";
 const DANGER_COLOR: &str = "\x1b[1;31m";
 const UNSEEN_COLOR: &str = "\x1b[90m";
+const ENTITY_COLOR: &str = "\x1b[1;32m";
+const TREE_COLOR: &str = "\x1b[32m";
 
 pub(crate) fn map_view(args: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
     let options = parse_options(args)?;
@@ -133,11 +135,15 @@ fn glyph_color(glyph: char) -> Option<&'static str> {
     match glyph {
         'C' => Some(CORE_COLOR),
         'W' => Some(WORKER_COLOR),
+        'E' => Some(ENTITY_COLOR),
         'B' => Some(BUILDING_COLOR),
         'i' => Some(IRON_COLOR),
         'c' => Some(COPPER_COLOR),
         'e' => Some(ENERGY_COLOR),
         'r' => Some(ROCK_COLOR),
+        's' => Some(ROCK_COLOR),
+        't' => Some(TREE_COLOR),
+        'w' => Some(WATER_COLOR),
         '~' => Some(WATER_COLOR),
         '^' => Some(MOUNTAIN_COLOR),
         'x' => Some(RUIN_COLOR),

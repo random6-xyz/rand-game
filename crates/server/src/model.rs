@@ -29,17 +29,6 @@ pub enum MapKind {
     Resource,
     Hazard,
     Monster,
-    Event,
-    War,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum TerrainKind {
-    Plain,
-    Rock,
-    Water,
-    Mountain,
-    Ruin,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,6 +36,9 @@ pub enum ResourceKind {
     Iron,
     Copper,
     Energy,
+    Stone,
+    Tree,
+    Water,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -58,13 +50,11 @@ pub struct ResourceStack {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(dead_code)]
 pub enum BuildingKind {
-    Core,
+    None,
     Miner,
     Storage,
     Solar,
-    Relay,
-    Wall,
-    Turret,
+    Assembler,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -83,18 +73,6 @@ pub enum ValidatedAction {
         target: Position,
         building_kind: BuildingKind,
     },
-    Transfer {
-        actor_entity_id: u64,
-        target_entity_id: Option<u64>,
-        target_building_id: Option<u64>,
-        resource: ResourceStack,
-        amount: u32,
-    },
-    Scan {
-        actor_entity_id: u64,
-        target: Position,
-        radius: u32,
-    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -103,28 +81,15 @@ pub struct Building {
     pub kind: BuildingKind,
     pub owner_id: u64,
     pub position: Position,
-    pub hp: u32,
-    pub max_hp: u32,
     pub power: i32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum EntityKind {
-    Core,
-    Worker,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Entity {
     pub id: u64,
-    pub kind: EntityKind,
     pub owner_id: u64,
     pub position: Position,
-    pub hp: u32,
-    pub max_hp: u32,
-    pub energy: u32,
     pub cargo: Vec<ResourceStack>,
-    pub cooldown_until_tick: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -143,7 +108,6 @@ pub struct RuntimeProfile {
     pub stdout_bytes: u32,
     pub stderr_bytes: u32,
     pub max_actions: u32,
-    pub max_signal_bytes: u32,
     pub max_persistent_memory_bytes: u32,
 }
 
@@ -158,7 +122,6 @@ impl CoreTier {
                 stdout_bytes: 64 * 1024,
                 stderr_bytes: 64 * 1024,
                 max_actions: 8,
-                max_signal_bytes: 256,
                 max_persistent_memory_bytes: 4096,
             },
             Self::Standard => RuntimeProfile {
@@ -169,7 +132,6 @@ impl CoreTier {
                 stdout_bytes: 96 * 1024,
                 stderr_bytes: 96 * 1024,
                 max_actions: 16,
-                max_signal_bytes: 512,
                 max_persistent_memory_bytes: 8192,
             },
             Self::Advanced => RuntimeProfile {
@@ -180,7 +142,6 @@ impl CoreTier {
                 stdout_bytes: 128 * 1024,
                 stderr_bytes: 128 * 1024,
                 max_actions: 32,
-                max_signal_bytes: 1024,
                 max_persistent_memory_bytes: 16384,
             },
         }
@@ -201,54 +162,13 @@ pub struct Player {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Tile {
     pub position: Position,
-    pub base_terrain: TerrainKind,
-    pub terrain: TerrainKind,
     pub resource: Option<ResourceStack>,
     pub building_id: Option<u64>,
     pub owner_id: Option<u64>,
-    pub danger_level: u16,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TileOverride {
-    pub terrain: Option<TerrainKind>,
     pub resource: Option<Option<ResourceStack>>,
     pub owner_id: Option<Option<u64>>,
-    pub danger_level: Option<u16>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum MonsterKind {
-    Drone,
-    Swarm,
-    Guardian,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Monster {
-    pub id: u64,
-    pub kind: MonsterKind,
-    pub position: Position,
-    pub hp: u32,
-    pub max_hp: u32,
-    pub target_entity_id: u64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum EnvironmentEventKind {
-    Storm,
-    Radiation,
-    Meteor,
-    ResourceSurge,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct EnvironmentEvent {
-    pub id: u64,
-    pub kind: EnvironmentEventKind,
-    pub center: Position,
-    pub radius: u32,
-    pub starts_at_tick: u64,
-    pub ends_at_tick: u64,
-    pub intensity: u16,
 }

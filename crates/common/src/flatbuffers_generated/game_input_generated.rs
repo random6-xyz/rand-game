@@ -27,10 +27,9 @@ impl<'a> ::flatbuffers::Follow<'a> for WorldInfo<'a> {
 
 impl<'a> WorldInfo<'a> {
   pub const VT_TICK: ::flatbuffers::VOffsetT = 4;
-  pub const VT_WORLD_SEED: ::flatbuffers::VOffsetT = 6;
-  pub const VT_MAP_ID: ::flatbuffers::VOffsetT = 8;
-  pub const VT_MAP_KIND: ::flatbuffers::VOffsetT = 10;
-  pub const VT_RULESET_VERSION: ::flatbuffers::VOffsetT = 12;
+  pub const VT_MAP_ID: ::flatbuffers::VOffsetT = 6;
+  pub const VT_MAP_KIND: ::flatbuffers::VOffsetT = 8;
+  pub const VT_RULESET_VERSION: ::flatbuffers::VOffsetT = 10;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -42,7 +41,6 @@ impl<'a> WorldInfo<'a> {
     args: &'args WorldInfoArgs
   ) -> ::flatbuffers::WIPOffset<WorldInfo<'bldr>> {
     let mut builder = WorldInfoBuilder::new(_fbb);
-    builder.add_world_seed(args.world_seed);
     builder.add_tick(args.tick);
     builder.add_ruleset_version(args.ruleset_version);
     builder.add_map_id(args.map_id);
@@ -57,13 +55,6 @@ impl<'a> WorldInfo<'a> {
     // Created from valid Table for this object
     // which contains a valid value in this slot
     unsafe { self._tab.get::<u64>(WorldInfo::VT_TICK, Some(0)).unwrap()}
-  }
-  #[inline]
-  pub fn world_seed(&self) -> u64 {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<u64>(WorldInfo::VT_WORLD_SEED, Some(0)).unwrap()}
   }
   #[inline]
   pub fn map_id(&self) -> u32 {
@@ -95,7 +86,6 @@ impl ::flatbuffers::Verifiable for WorldInfo<'_> {
   ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
     v.visit_table(pos)?
      .visit_field::<u64>("tick", Self::VT_TICK, false)?
-     .visit_field::<u64>("world_seed", Self::VT_WORLD_SEED, false)?
      .visit_field::<u32>("map_id", Self::VT_MAP_ID, false)?
      .visit_field::<MapKind>("map_kind", Self::VT_MAP_KIND, false)?
      .visit_field::<u32>("ruleset_version", Self::VT_RULESET_VERSION, false)?
@@ -105,7 +95,6 @@ impl ::flatbuffers::Verifiable for WorldInfo<'_> {
 }
 pub struct WorldInfoArgs {
     pub tick: u64,
-    pub world_seed: u64,
     pub map_id: u32,
     pub map_kind: MapKind,
     pub ruleset_version: u32,
@@ -115,7 +104,6 @@ impl<'a> Default for WorldInfoArgs {
   fn default() -> Self {
     WorldInfoArgs {
       tick: 0,
-      world_seed: 0,
       map_id: 0,
       map_kind: MapKind::Resource,
       ruleset_version: 0,
@@ -131,10 +119,6 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> WorldInfoBuilder<'a, 'b, A> {
   #[inline]
   pub fn add_tick(&mut self, tick: u64) {
     self.fbb_.push_slot::<u64>(WorldInfo::VT_TICK, tick, 0);
-  }
-  #[inline]
-  pub fn add_world_seed(&mut self, world_seed: u64) {
-    self.fbb_.push_slot::<u64>(WorldInfo::VT_WORLD_SEED, world_seed, 0);
   }
   #[inline]
   pub fn add_map_id(&mut self, map_id: u32) {
@@ -167,7 +151,6 @@ impl ::core::fmt::Debug for WorldInfo<'_> {
   fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
     let mut ds = f.debug_struct("WorldInfo");
       ds.field("tick", &self.tick());
-      ds.field("world_seed", &self.world_seed());
       ds.field("map_id", &self.map_id());
       ds.field("map_kind", &self.map_kind());
       ds.field("ruleset_version", &self.ruleset_version());
@@ -194,9 +177,6 @@ impl<'a> Observation<'a> {
   pub const VT_RADIUS: ::flatbuffers::VOffsetT = 6;
   pub const VT_VISIBLE_TILES: ::flatbuffers::VOffsetT = 8;
   pub const VT_OWNED_ENTITIES: ::flatbuffers::VOffsetT = 10;
-  pub const VT_VISIBLE_MONSTERS: ::flatbuffers::VOffsetT = 12;
-  pub const VT_ENVIRONMENT_EVENTS: ::flatbuffers::VOffsetT = 14;
-  pub const VT_INCOMING_SIGNALS: ::flatbuffers::VOffsetT = 16;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -208,9 +188,6 @@ impl<'a> Observation<'a> {
     args: &'args ObservationArgs<'args>
   ) -> ::flatbuffers::WIPOffset<Observation<'bldr>> {
     let mut builder = ObservationBuilder::new(_fbb);
-    if let Some(x) = args.incoming_signals { builder.add_incoming_signals(x); }
-    if let Some(x) = args.environment_events { builder.add_environment_events(x); }
-    if let Some(x) = args.visible_monsters { builder.add_visible_monsters(x); }
     if let Some(x) = args.owned_entities { builder.add_owned_entities(x); }
     if let Some(x) = args.visible_tiles { builder.add_visible_tiles(x); }
     builder.add_radius(args.radius);
@@ -247,27 +224,6 @@ impl<'a> Observation<'a> {
     // which contains a valid value in this slot
     unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Entity>>>>(Observation::VT_OWNED_ENTITIES, None)}
   }
-  #[inline]
-  pub fn visible_monsters(&self) -> Option<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Monster<'a>>>> {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Monster>>>>(Observation::VT_VISIBLE_MONSTERS, None)}
-  }
-  #[inline]
-  pub fn environment_events(&self) -> Option<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<EnvironmentEvent<'a>>>> {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<EnvironmentEvent>>>>(Observation::VT_ENVIRONMENT_EVENTS, None)}
-  }
-  #[inline]
-  pub fn incoming_signals(&self) -> Option<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Signal<'a>>>> {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Signal>>>>(Observation::VT_INCOMING_SIGNALS, None)}
-  }
 }
 
 impl ::flatbuffers::Verifiable for Observation<'_> {
@@ -280,9 +236,6 @@ impl ::flatbuffers::Verifiable for Observation<'_> {
      .visit_field::<u32>("radius", Self::VT_RADIUS, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<Tile>>>>("visible_tiles", Self::VT_VISIBLE_TILES, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<Entity>>>>("owned_entities", Self::VT_OWNED_ENTITIES, false)?
-     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<Monster>>>>("visible_monsters", Self::VT_VISIBLE_MONSTERS, false)?
-     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<EnvironmentEvent>>>>("environment_events", Self::VT_ENVIRONMENT_EVENTS, false)?
-     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<Signal>>>>("incoming_signals", Self::VT_INCOMING_SIGNALS, false)?
      .finish();
     Ok(())
   }
@@ -292,9 +245,6 @@ pub struct ObservationArgs<'a> {
     pub radius: u32,
     pub visible_tiles: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Tile<'a>>>>>,
     pub owned_entities: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Entity<'a>>>>>,
-    pub visible_monsters: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Monster<'a>>>>>,
-    pub environment_events: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<EnvironmentEvent<'a>>>>>,
-    pub incoming_signals: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<Signal<'a>>>>>,
 }
 impl<'a> Default for ObservationArgs<'a> {
   #[inline]
@@ -304,9 +254,6 @@ impl<'a> Default for ObservationArgs<'a> {
       radius: 0,
       visible_tiles: None,
       owned_entities: None,
-      visible_monsters: None,
-      environment_events: None,
-      incoming_signals: None,
     }
   }
 }
@@ -333,18 +280,6 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> ObservationBuilder<'a, 'b, A>
     self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Observation::VT_OWNED_ENTITIES, owned_entities);
   }
   #[inline]
-  pub fn add_visible_monsters(&mut self, visible_monsters: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ::flatbuffers::ForwardsUOffset<Monster<'b >>>>) {
-    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Observation::VT_VISIBLE_MONSTERS, visible_monsters);
-  }
-  #[inline]
-  pub fn add_environment_events(&mut self, environment_events: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ::flatbuffers::ForwardsUOffset<EnvironmentEvent<'b >>>>) {
-    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Observation::VT_ENVIRONMENT_EVENTS, environment_events);
-  }
-  #[inline]
-  pub fn add_incoming_signals(&mut self, incoming_signals: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ::flatbuffers::ForwardsUOffset<Signal<'b >>>>) {
-    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Observation::VT_INCOMING_SIGNALS, incoming_signals);
-  }
-  #[inline]
   pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> ObservationBuilder<'a, 'b, A> {
     let start = _fbb.start_table();
     ObservationBuilder {
@@ -366,9 +301,6 @@ impl ::core::fmt::Debug for Observation<'_> {
       ds.field("radius", &self.radius());
       ds.field("visible_tiles", &self.visible_tiles());
       ds.field("owned_entities", &self.owned_entities());
-      ds.field("visible_monsters", &self.visible_monsters());
-      ds.field("environment_events", &self.environment_events());
-      ds.field("incoming_signals", &self.incoming_signals());
       ds.finish()
   }
 }

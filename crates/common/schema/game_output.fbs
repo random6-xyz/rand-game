@@ -6,13 +6,8 @@ enum ActionKind : byte {
   Move = 0,
   Mine = 1,
   Build = 2,
-  Transfer = 3,
-  Scan = 4,
-  SendSignal = 5,
-  Attack = 6,
-  Repair = 7,
-  SetPowerMode = 8,
-  DeployDecoy = 9
+  Lift = 3,
+  Put = 4
 }
 
 table Action {
@@ -24,17 +19,12 @@ table Action {
   resource:ResourceStack;
   building_kind:BuildingKind;
   amount:uint;
-  scan_radius:uint;
-  signal_channel:uint;
-  signal_payload:[ubyte];
-  power_mode:PowerMode;
 }
 
 table GameOutput {
   protocol_version:ProtocolVersion = V1;
   actions:[Action];
   persistent_memory:[ubyte];
-  debug_message:string;
 }
 
 root_type GameOutput;
