@@ -1,0 +1,37 @@
+include "game_common.fbs";
+
+namespace RandGame;
+
+table WorldInfo {
+  tick:ulong;
+  world_seed:ulong;
+  map_id:uint;
+  map_kind:MapKind;
+  ruleset_version:uint;
+}
+
+table Observation {
+  center:Vec2I;
+  radius:uint;
+  visible_tiles:[Tile];
+  owned_entities:[Entity];
+  visible_monsters:[Monster];
+  environment_events:[EnvironmentEvent];
+  incoming_signals:[Signal];
+}
+
+table RuntimeLimits {
+  compute_budget:ComputeBudget;
+  action_limits:ActionLimits;
+}
+
+table GameInput {
+  protocol_version:ProtocolVersion = V1;
+  world:WorldInfo;
+  observation:Observation;
+  persistent_memory:[ubyte];
+  runtime_limits:RuntimeLimits;
+}
+
+root_type GameInput;
+file_identifier "BWI1";

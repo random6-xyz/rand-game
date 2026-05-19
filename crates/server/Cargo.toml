@@ -1,0 +1,15 @@
+[package]
+name = "rand-game-server"
+version = "0.1.0"
+edition.workspace = true
+license = "AGPL-3.0-or-later"
+
+[dependencies]
+axum = "0.8"
+bincode = "1"
+bytes = "1"
+flatbuffers = "25"
+rand-game-common = { path = "../common" }
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["fs", "macros", "net", "rt-multi-thread", "sync", "time"] }
+wait-timeout = "0.2"
