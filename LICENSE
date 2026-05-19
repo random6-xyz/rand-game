@@ -2,6 +2,7 @@ This repository uses different licenses for different Rust crates.
 
 - crates/xtask: AGPL-3.0-or-later
 - crates/server: AGPL-3.0-or-later
+- crates/client: AGPL-3.0-or-later
 - crates/binary: Apache-2.0
 - crates/common: Apache-2.0
 
