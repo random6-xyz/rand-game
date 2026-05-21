@@ -1,3 +1,4 @@
+mod behavior;
 mod model;
 mod observation;
 mod output;

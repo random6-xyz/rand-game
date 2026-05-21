@@ -40,6 +40,48 @@ pub(crate) fn build_output_with_actions(planned_actions: Vec<PlannedAction>) -> 
                     },
                 )
             }
+            ActionPlan::Build {
+                target,
+                building_kind,
+            } => {
+                let target_position = Vec2I::new(target.x, target.y);
+                Action::create(
+                    &mut fbb,
+                    &ActionArgs {
+                        kind: ActionKind::Build,
+                        actor_entity_id: planned_action.actor_id,
+                        target_position: Some(&target_position),
+                        building_kind,
+                        ..Default::default()
+                    },
+                )
+            }
+            ActionPlan::Lift { resource, amount } => {
+                let resource = ResourceStack::new(resource, amount);
+                Action::create(
+                    &mut fbb,
+                    &ActionArgs {
+                        kind: ActionKind::Lift,
+                        actor_entity_id: planned_action.actor_id,
+                        resource: Some(&resource),
+                        amount,
+                        ..Default::default()
+                    },
+                )
+            }
+            ActionPlan::Put { resource, amount } => {
+                let resource = ResourceStack::new(resource, amount);
+                Action::create(
+                    &mut fbb,
+                    &ActionArgs {
+                        kind: ActionKind::Put,
+                        actor_entity_id: planned_action.actor_id,
+                        resource: Some(&resource),
+                        amount,
+                        ..Default::default()
+                    },
+                )
+            }
         };
         action_offsets.push(action);
     }
