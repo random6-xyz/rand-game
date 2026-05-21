@@ -19,6 +19,7 @@ pub struct ServerState {
 
 #[derive(Debug, Clone, Default)]
 pub struct ServerConfig {
+    pub addr: String,
     pub debug_max_actions: Option<u32>,
     pub log_bot_stderr: bool,
     pub env: ServerEnv,

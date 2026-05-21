@@ -35,8 +35,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state = SharedState::new(world, action_log, config);
     tokio::spawn(tick::run_tick_loop(state.clone()));
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
-    println!("HTTP API listening on http://127.0.0.1:3000");
+    let addr = state.inner().config.addr.clone();
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    println!("HTTP API listening on http://{addr}");
     axum::serve(listener, api::router(state)).await?;
 
     Ok(())

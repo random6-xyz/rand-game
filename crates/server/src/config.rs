@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::rules::{ServerEnv, ServerRules};
 use crate::state::ServerConfig;
 
+const DEFAULT_ADDR: &str = "127.0.0.1:3000";
 const DEFAULT_ENV_PATH: &str = "config/server.env.toml";
 const DEFAULT_RULES_PATH: &str = "config/server.rules.toml";
 
@@ -10,6 +11,7 @@ pub fn parse_config() -> Result<ServerConfig, Box<dyn std::error::Error>> {
     let mut env_path = PathBuf::from(DEFAULT_ENV_PATH);
     let mut rules_path = PathBuf::from(DEFAULT_RULES_PATH);
     let mut config = ServerConfig {
+        addr: DEFAULT_ADDR.into(),
         debug_max_actions: parse_env_u32("RAND_GAME_DEBUG_MAX_ACTIONS")?,
         log_bot_stderr: parse_env_bool("RAND_GAME_LOG_BOT_STDERR")?,
         env: ServerEnv::default(),
@@ -19,6 +21,9 @@ pub fn parse_config() -> Result<ServerConfig, Box<dyn std::error::Error>> {
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "--addr" => {
+                config.addr = args.next().ok_or("missing value for --addr")?;
+            }
             "--debug-max-actions" => {
                 let value = args.next().ok_or("missing value for --debug-max-actions")?;
                 config.debug_max_actions = Some(value.parse()?);
@@ -34,7 +39,7 @@ pub fn parse_config() -> Result<ServerConfig, Box<dyn std::error::Error>> {
             }
             "--help" | "-h" => {
                 println!(
-                    "rand-game-server\n\nUsage:\n  rand-game-server [--env-path P] [--rules-path P] [--debug-max-actions N] [--log-bot-stderr]\n\nEnvironment:\n  RAND_GAME_DEBUG_MAX_ACTIONS=N\n  RAND_GAME_LOG_BOT_STDERR=1"
+                    "rand-game-server\n\nUsage:\n  rand-game-server [--addr HOST:PORT] [--env-path P] [--rules-path P] [--debug-max-actions N] [--log-bot-stderr]\n\nEnvironment:\n  RAND_GAME_DEBUG_MAX_ACTIONS=N\n  RAND_GAME_LOG_BOT_STDERR=1"
                 );
                 std::process::exit(0);
             }
