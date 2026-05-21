@@ -2,6 +2,12 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::process::Command;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct TerminalSize {
+    pub(crate) rows: u16,
+    pub(crate) cols: u16,
+}
+
 pub(crate) struct TerminalMode {
     saved: String,
     tty: File,
@@ -73,4 +79,23 @@ impl Drop for TerminalMode {
 pub(crate) fn write_raw_terminal_frame(frame: &str) -> Result<(), Box<dyn std::error::Error>> {
     std::io::stdout().write_all(frame.replace('\n', "\r\n").as_bytes())?;
     Ok(())
+}
+
+pub(crate) fn terminal_size() -> Option<TerminalSize> {
+    let tty = File::options()
+        .read(true)
+        .write(true)
+        .open("/dev/tty")
+        .ok()?;
+    let output = Command::new("stty").arg("size").stdin(tty).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+
+    let text = String::from_utf8(output.stdout).ok()?;
+    let mut parts = text.split_whitespace();
+    let rows = parts.next()?.parse::<u16>().ok()?;
+    let cols = parts.next()?.parse::<u16>().ok()?;
+
+    Some(TerminalSize { rows, cols })
 }

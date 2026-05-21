@@ -215,8 +215,6 @@ fn user_debug() -> Result<(), Box<dyn std::error::Error>> {
         "0",
         "--y",
         "0",
-        "--radius",
-        "16",
     ])
 }
 
