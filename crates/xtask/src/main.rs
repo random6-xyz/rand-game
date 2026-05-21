@@ -113,6 +113,12 @@ fn server(args: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(debug_max_actions) = options.debug_max_actions.as_deref() {
         cargo_args.extend(["--", "--debug-max-actions", debug_max_actions]);
     }
+    if options.log_bot_stderr {
+        if options.debug_max_actions.is_none() {
+            cargo_args.push("--");
+        }
+        cargo_args.push("--log-bot-stderr");
+    }
 
     cargo(&cargo_args)
 }
@@ -259,6 +265,7 @@ struct Options {
     path: Option<String>,
     addr: Option<String>,
     debug_max_actions: Option<String>,
+    log_bot_stderr: bool,
 }
 
 fn parse_options(args: Vec<String>) -> Result<Options, Box<dyn std::error::Error>> {
@@ -278,6 +285,7 @@ fn parse_options(args: Vec<String>) -> Result<Options, Box<dyn std::error::Error
             "--debug-max-actions" => {
                 options.debug_max_actions = Some(required_value(&arg, iter.next())?)
             }
+            "--log-bot-stderr" => options.log_bot_stderr = true,
             other => return Err(format!("unknown option `{other}`").into()),
         }
     }

@@ -19,6 +19,7 @@ pub struct ServerState {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ServerConfig {
     pub debug_max_actions: Option<u32>,
+    pub log_bot_stderr: bool,
 }
 
 impl SharedState {
