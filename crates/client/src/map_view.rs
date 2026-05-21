@@ -52,13 +52,13 @@ pub(crate) fn map_view(args: Vec<String>) -> Result<(), Box<dyn std::error::Erro
         match fetch_map_view(&addr, &player_id, map_id.as_deref(), x, y, &radius) {
             Ok(body) => {
                 write_raw_terminal_frame(&format!(
-                    "\x1b[2J\x1b[H{}\ncontrols: w/a/s/d move viewport by {MAP_VIEW_PAN_STEP}, q quit | center=({x}, {y})\n",
+                    "\x1b[2J\x1b[H{}\ncontrols: w/a/s/d move viewport by {MAP_VIEW_PAN_STEP}, q/Ctrl-C quit | center=({x}, {y})\n",
                     colorize_map_view(&body)
                 ))?;
             }
             Err(err) => {
                 write_raw_terminal_frame(&format!(
-                    "\x1b[2J\x1b[Hmap-view request failed: {err}\n\ncontrols: w/a/s/d move viewport by {MAP_VIEW_PAN_STEP}, q quit | center=({x}, {y})\n"
+                    "\x1b[2J\x1b[Hmap-view request failed: {err}\n\ncontrols: w/a/s/d move viewport by {MAP_VIEW_PAN_STEP}, q/Ctrl-C quit | center=({x}, {y})\n"
                 ))?;
             }
         }

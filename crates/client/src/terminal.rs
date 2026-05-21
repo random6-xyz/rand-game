@@ -45,7 +45,7 @@ impl TerminalMode {
                 b'a' => *x -= pan_step,
                 b's' => *y -= pan_step,
                 b'd' => *x += pan_step,
-                b'q' => return Ok(true),
+                b'q' | 0x03 => return Ok(true),
                 _ => {}
             }
         }
