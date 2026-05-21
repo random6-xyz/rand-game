@@ -1,181 +1,7 @@
-use rand_game_common::fb;
-
-use crate::model::{
-    ChunkCoord, MapKind, Position, ResourceKind, ResourceStack, Tile, ValidatedAction,
-};
-use crate::protocol;
-use crate::world::WorldState;
-
-pub const WORLD_SEED: u64 = 0x5241_4e44_4741_4d45;
-pub const MAP_ID: u32 = 0;
-pub const OBSERVATION_RADIUS: u32 = 8;
-pub const MAX_MINE_AMOUNT: u32 = 25;
+use crate::model::{ChunkCoord, MapKind, Position, ResourceKind, ResourceStack, Tile};
 
 const RESOURCE_CLUSTER_SIZE: i32 = 12;
 const RESOURCE_CLUSTER_GAP: i32 = 1;
-
-#[derive(Debug, Default)]
-pub struct ValidationReport {
-    pub actions: Vec<ValidatedAction>,
-    pub rejected: Vec<String>,
-    pub persistent_memory: Option<Vec<u8>>,
-}
-
-pub fn validate_game_output(
-    world: &WorldState,
-    player_id: u64,
-    output_payload: &[u8],
-    debug_max_actions: Option<u32>,
-) -> Result<ValidationReport, Box<dyn std::error::Error>> {
-    let output = fb::root_as_game_output(output_payload)?;
-    let mut report = ValidationReport::default();
-
-    if output.protocol_version() != fb::ProtocolVersion::V1 {
-        report.rejected.push("unsupported protocol_version".into());
-        return Ok(report);
-    }
-
-    let runtime_profile = world
-        .player_runtime_profile(player_id)
-        .ok_or("player has no runtime profile")?;
-    let max_actions = debug_max_actions.unwrap_or(runtime_profile.max_actions);
-
-    if let Some(memory) = output.persistent_memory() {
-        if memory.len() > runtime_profile.max_persistent_memory_bytes as usize {
-            report.rejected.push(format!(
-                "persistent memory {} bytes exceeds max {}",
-                memory.len(),
-                runtime_profile.max_persistent_memory_bytes
-            ));
-        } else {
-            report.persistent_memory = Some(memory.bytes().to_vec());
-        }
-    }
-
-    let Some(actions) = output.actions() else {
-        return Ok(report);
-    };
-    if actions.len() > max_actions as usize {
-        report.rejected.push(format!(
-            "action count {} exceeds max {}",
-            actions.len(),
-            max_actions
-        ));
-    }
-
-    for index in 0..actions.len().min(max_actions as usize) {
-        let action = actions.get(index);
-        match validate_action(world, player_id, action) {
-            Ok(action) => report.actions.push(action),
-            Err(reason) => report.rejected.push(format!("action {index}: {reason}")),
-        }
-    }
-
-    Ok(report)
-}
-
-pub fn validate_action(
-    world: &WorldState,
-    player_id: u64,
-    action: fb::Action<'_>,
-) -> Result<ValidatedAction, String> {
-    let actor = world
-        .entities
-        .get(&action.actor_entity_id())
-        .ok_or("actor entity does not exist")?;
-    if actor.owner_id != player_id {
-        return Err("actor entity is not owned by player".into());
-    }
-    match action.kind() {
-        fb::ActionKind::Move => validate_move(world, actor.position, action),
-        fb::ActionKind::Mine => validate_mine(world, actor.position, action),
-        fb::ActionKind::Build => validate_build(world, player_id, actor.position, action),
-        other => Err(format!("unsupported action kind {other:?}")),
-    }
-}
-
-fn validate_move(
-    world: &WorldState,
-    actor_position: Position,
-    action: fb::Action<'_>,
-) -> Result<ValidatedAction, String> {
-    let target = required_target_position(action, "Move")?;
-    if actor_position.manhattan(target) != 1 {
-        return Err("move target must be orthogonally adjacent".into());
-    }
-    if !world.is_passable(target) {
-        return Err("move target is blocked".into());
-    }
-
-    Ok(ValidatedAction::Move {
-        actor_entity_id: action.actor_entity_id(),
-        target,
-    })
-}
-
-fn validate_mine(
-    world: &WorldState,
-    actor_position: Position,
-    action: fb::Action<'_>,
-) -> Result<ValidatedAction, String> {
-    let target = required_target_position(action, "Mine")?;
-    if actor_position.manhattan(target) != 1 {
-        return Err("mine target must be orthogonally adjacent".into());
-    }
-    let tile = world.tile_at(target);
-    let resource = tile.resource.ok_or("mine target has no resource")?;
-    let requested = action.amount().clamp(1, MAX_MINE_AMOUNT);
-    if requested > resource.amount {
-        return Err("mine amount exceeds remaining resource".into());
-    }
-
-    Ok(ValidatedAction::Mine {
-        actor_entity_id: action.actor_entity_id(),
-        target,
-        amount: requested,
-    })
-}
-
-fn validate_build(
-    world: &WorldState,
-    player_id: u64,
-    actor_position: Position,
-    action: fb::Action<'_>,
-) -> Result<ValidatedAction, String> {
-    let target = required_target_position(action, "Build")?;
-    if actor_position.manhattan(target) != 1 {
-        return Err("build target must be orthogonally adjacent".into());
-    }
-    if !world.is_passable(target) {
-        return Err("build target is not empty and passable".into());
-    }
-    let near_owned_core = world.buildings.values().any(|building| {
-        building.owner_id == player_id
-            && building.kind == crate::model::BuildingKind::None
-            && building.position.manhattan(target) <= 4
-    });
-    if !near_owned_core {
-        return Err("build target must be near owned core".into());
-    }
-    let building_kind = protocol::to_model_building_kind(action.building_kind())
-        .ok_or("build action has invalid building kind")?;
-    if building_kind == crate::model::BuildingKind::None {
-        return Err("building another core is not allowed in MVP".into());
-    }
-
-    Ok(ValidatedAction::Build {
-        actor_entity_id: action.actor_entity_id(),
-        target,
-        building_kind,
-    })
-}
-
-fn required_target_position(action: fb::Action<'_>, kind: &str) -> Result<Position, String> {
-    action
-        .target_position()
-        .map(protocol::to_model_position)
-        .ok_or_else(|| format!("{kind:?} action requires target_position"))
-}
 
 pub fn generated_tile(world_seed: u64, map_id: u32, map_kind: MapKind, position: Position) -> Tile {
     let sample = hash_position(world_seed, map_id, position);
@@ -228,7 +54,7 @@ fn generated_resource(
         }
     }
 
-    let amount = 80 + ((sample >> 16) % 421) as u32;
+    let amount = 5000 + ((sample >> 16) % 1000) as u32;
 
     Some(ResourceStack {
         kind: cluster.kind,
@@ -348,7 +174,7 @@ fn splitmix64(mut value: u64) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::world::WorldState;
+    use crate::rules::{MAP_ID, WORLD_SEED};
 
     #[test]
     fn generated_tiles_are_deterministic() {
@@ -432,31 +258,5 @@ mod tests {
                 }
             }
         }
-    }
-
-    #[test]
-    fn debug_action_validation_ignores_actor_cooldown() {
-        let world = WorldState::new();
-        let player = world.players.get(&1).expect("player 1");
-        let actor_id = player.worker_entity_id;
-
-        let mut fbb = flatbuffers::FlatBufferBuilder::new();
-        let target = fb::Vec2I::new(1, 0);
-        let action = fb::Action::create(
-            &mut fbb,
-            &fb::ActionArgs {
-                kind: fb::ActionKind::Lift,
-                actor_entity_id: actor_id,
-                target_position: Some(&target),
-                ..Default::default()
-            },
-        );
-        fbb.finish_minimal(action);
-        let action = flatbuffers::root::<fb::Action<'_>>(fbb.finished_data()).expect("action");
-
-        assert_eq!(
-            validate_action(&world, 1, action),
-            Err("unsupported action kind Lift".into())
-        );
     }
 }

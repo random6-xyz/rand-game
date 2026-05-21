@@ -73,6 +73,16 @@ pub enum ValidatedAction {
         target: Position,
         building_kind: BuildingKind,
     },
+    Lift {
+        actor_entity_id: u64,
+        kind: ResourceKind,
+        amount: u32,
+    },
+    Put {
+        actor_entity_id: u64,
+        kind: ResourceKind,
+        amount: u32,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -99,7 +109,7 @@ pub enum CoreTier {
     Advanced,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeProfile {
     pub run_interval_ticks: u64,
     pub cpu_time_ms: u32,
@@ -109,43 +119,6 @@ pub struct RuntimeProfile {
     pub stderr_bytes: u32,
     pub max_actions: u32,
     pub max_persistent_memory_bytes: u32,
-}
-
-impl CoreTier {
-    pub const fn runtime_profile(self) -> RuntimeProfile {
-        match self {
-            Self::Basic => RuntimeProfile {
-                run_interval_ticks: 5,
-                cpu_time_ms: 50,
-                wall_time_ms: 250,
-                memory_bytes: 64 * 1024 * 1024,
-                stdout_bytes: 64 * 1024,
-                stderr_bytes: 64 * 1024,
-                max_actions: 8,
-                max_persistent_memory_bytes: 4096,
-            },
-            Self::Standard => RuntimeProfile {
-                run_interval_ticks: 3,
-                cpu_time_ms: 100,
-                wall_time_ms: 400,
-                memory_bytes: 96 * 1024 * 1024,
-                stdout_bytes: 96 * 1024,
-                stderr_bytes: 96 * 1024,
-                max_actions: 16,
-                max_persistent_memory_bytes: 8192,
-            },
-            Self::Advanced => RuntimeProfile {
-                run_interval_ticks: 1,
-                cpu_time_ms: 200,
-                wall_time_ms: 750,
-                memory_bytes: 128 * 1024 * 1024,
-                stdout_bytes: 128 * 1024,
-                stderr_bytes: 128 * 1024,
-                max_actions: 32,
-                max_persistent_memory_bytes: 16384,
-            },
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

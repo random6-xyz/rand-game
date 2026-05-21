@@ -11,7 +11,8 @@ use crate::state::SharedState;
 use crate::storage;
 
 pub async fn run_tick_loop(state: SharedState) {
-    let mut interval = tokio::time::interval(Duration::from_secs(1));
+    let tick_interval_ms = state.inner().config.rules.tick_interval_ms.max(1);
+    let mut interval = tokio::time::interval(Duration::from_millis(tick_interval_ms));
 
     loop {
         interval.tick().await;
@@ -29,7 +30,7 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
         let Some(player_id) = world.primary_player_id() else {
             return Ok(());
         };
-        let should_run = should_run_player_bot(&world, player_id);
+        let should_run = should_run_player_bot(&world, player_id, &state.inner().config.rules);
         if !should_run {
             return Ok(());
         }
@@ -43,6 +44,7 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
         let input_frame = protocol::build_game_input_frame(
             &world,
             player_id,
+            &state.inner().config.rules,
             state.inner().config.debug_max_actions,
         )?;
         Some((player_id, bot_path, input_frame))
@@ -53,11 +55,11 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
     };
 
     let bot_result = runner::run_bot(&bot_path, &input_frame)?;
-    if !bot_result.stderr.trim().is_empty() {
+    if state.inner().config.log_bot_stderr && !bot_result.stderr.trim().is_empty() {
         log_bot_stderr(player_id, &bot_path, &bot_result.stderr);
     }
 
-    let (tick, entries) = {
+    let entries = {
         let mut world = state.inner().world.lock().await;
         let tick = world.tick;
         let mut entries = Vec::new();
@@ -68,6 +70,7 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
                 player_id,
                 tick,
                 &bot_result.output_payload,
+                &state.inner().config.rules,
                 state.inner().config.debug_max_actions,
                 &mut entries,
             )?;
@@ -76,6 +79,7 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
                 &world,
                 player_id,
                 &bot_result.output_payload,
+                &state.inner().config.rules,
                 state.inner().config.debug_max_actions,
             )?;
             for rejection in &validation.rejected {
@@ -88,22 +92,18 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
 
             for action in validation.actions {
                 let result = world.apply_action(player_id, &action);
-                entries.push(ActionLogEntry {
-                    tick,
-                    player_id,
-                    action,
-                    result,
-                });
+                entries.push(ActionLogEntry::new(tick, player_id, action, result));
             }
         }
         storage::save_world(&world)?;
 
-        (tick, entries)
+        entries
     };
 
     let mut action_log = state.inner().action_log.lock().await;
+    let entries = compact_entries(entries);
     for entry in entries {
-        eprintln!("tick {tick}: {}", entry.result);
+        eprintln!("tick {}: {}", entry.tick, entry.summary());
         action_log.push(entry);
     }
     storage::save_action_log(&action_log)?;
@@ -116,6 +116,7 @@ fn apply_debug_output_sequentially(
     player_id: u64,
     tick: u64,
     output_payload: &[u8],
+    server_rules: &crate::rules::ServerRules,
     debug_max_actions: Option<u32>,
     entries: &mut Vec<ActionLogEntry>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -126,7 +127,7 @@ fn apply_debug_output_sequentially(
     }
 
     let runtime_profile = world
-        .player_runtime_profile(player_id)
+        .player_runtime_profile_with_rules(player_id, server_rules)
         .ok_or("player has no runtime profile")?;
     if let Some(memory) = output.persistent_memory() {
         if memory.len() > runtime_profile.max_persistent_memory_bytes as usize {
@@ -154,15 +155,10 @@ fn apply_debug_output_sequentially(
 
     for index in 0..actions.len().min(max_actions) {
         let action = actions.get(index);
-        match rules::validate_action(world, player_id, action) {
+        match rules::validate_action(world, player_id, action, server_rules) {
             Ok(action) => {
                 let result = world.apply_action(player_id, &action);
-                entries.push(ActionLogEntry {
-                    tick,
-                    player_id,
-                    action,
-                    result,
-                });
+                entries.push(ActionLogEntry::new(tick, player_id, action, result));
             }
             Err(reason) => eprintln!("rejected action: action {index}: {reason}"),
         }
@@ -171,11 +167,36 @@ fn apply_debug_output_sequentially(
     Ok(())
 }
 
-fn should_run_player_bot(world: &crate::world::WorldState, player_id: u64) -> bool {
+fn compact_entries(entries: Vec<ActionLogEntry>) -> Vec<ActionLogEntry> {
+    let mut compacted: Vec<ActionLogEntry> = Vec::new();
+    for mut entry in entries {
+        if entry.count == 0 {
+            entry.count = 1;
+        }
+        if let Some(existing) = compacted
+            .iter_mut()
+            .find(|existing| existing.can_merge(&entry))
+        {
+            existing.count += entry.count;
+        } else {
+            compacted.push(entry);
+        }
+    }
+    compacted
+}
+
+fn should_run_player_bot(
+    world: &crate::world::WorldState,
+    player_id: u64,
+    rules: &crate::rules::ServerRules,
+) -> bool {
     let Some(player) = world.players.get(&player_id) else {
         return false;
     };
-    let interval = player.core_tier.runtime_profile().run_interval_ticks.max(1);
+    let interval = rules
+        .runtime_profile(player.core_tier)
+        .run_interval_ticks
+        .max(1);
     let run_phase = player.core_entity_id % interval;
     world.tick % interval == run_phase
 }
@@ -186,5 +207,50 @@ fn log_bot_stderr(player_id: u64, bot_path: &Path, stderr: &str) {
             "bot stderr [player_id={player_id} path={}]: {line}",
             bot_path.display()
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::action_log::ActionLogEntry;
+    use crate::model::{Position, ValidatedAction};
+
+    use super::compact_entries;
+
+    #[test]
+    fn compacts_repeated_actions_with_interleaved_targets() {
+        let entries = vec![
+            mine_entry(2, Position::new(0, -1)),
+            mine_entry(3, Position::new(0, 0)),
+            mine_entry(2, Position::new(0, -1)),
+            mine_entry(3, Position::new(0, 0)),
+        ];
+
+        let compacted = compact_entries(entries);
+
+        assert_eq!(compacted.len(), 2);
+        assert_eq!(compacted[0].count, 2);
+        assert_eq!(compacted[1].count, 2);
+        assert_eq!(
+            compacted[0].summary(),
+            "mined 1 Energy at (0, -1) (2 times)"
+        );
+        assert_eq!(compacted[1].summary(), "mined 1 Energy at (0, 0) (2 times)");
+    }
+
+    fn mine_entry(actor_entity_id: u64, target: Position) -> ActionLogEntry {
+        ActionLogEntry::new(
+            7,
+            1,
+            ValidatedAction::Mine {
+                actor_entity_id,
+                target,
+                amount: 1,
+            },
+            format!(
+                "entity {actor_entity_id} mined 1 Energy at ({}, {})",
+                target.x, target.y
+            ),
+        )
     }
 }

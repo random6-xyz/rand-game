@@ -1,0 +1,40 @@
+ruleset_version = 1
+tick_interval_ms = 1000
+observation_radius = 8
+max_mine_amount = 1
+max_world_radius = 16
+max_map_view_radius = 16
+max_debug_map_view_radius = 128
+default_world_radius = 4
+max_bot_upload_bytes = 16777216
+build_core_radius = 4
+
+[basic_core]
+run_interval_ticks = 5
+cpu_time_ms = 50
+wall_time_ms = 250
+memory_bytes = 67108864
+stdout_bytes = 65536
+stderr_bytes = 65536
+max_actions = 8
+max_persistent_memory_bytes = 4096
+
+[standard_core]
+run_interval_ticks = 3
+cpu_time_ms = 100
+wall_time_ms = 400
+memory_bytes = 100663296
+stdout_bytes = 98304
+stderr_bytes = 98304
+max_actions = 16
+max_persistent_memory_bytes = 8192
+
+[advanced_core]
+run_interval_ticks = 1
+cpu_time_ms = 200
+wall_time_ms = 750
+memory_bytes = 134217728
+stdout_bytes = 131072
+stderr_bytes = 131072
+max_actions = 32
+max_persistent_memory_bytes = 16384

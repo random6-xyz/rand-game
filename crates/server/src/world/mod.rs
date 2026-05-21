@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+mod cargo;
+
 use crate::model::{
-    Building, BuildingKind, CoreTier, Entity, MapKind, Player, Position, ResourceStack, Tile,
-    TileOverride, ValidatedAction,
+    Building, BuildingKind, CoreTier, Entity, MapKind, Player, Position, ResourceKind,
+    ResourceStack, Tile, TileOverride, ValidatedAction,
 };
-use crate::rules;
+use crate::rules::{self, ServerEnv, ServerRules};
+
+use self::cargo::{add_cargo, remove_cargo};
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct WorldState {
@@ -21,12 +25,17 @@ pub struct WorldState {
 }
 
 impl WorldState {
+    #[cfg(test)]
     pub fn new() -> Self {
+        Self::new_with_config(&ServerEnv::default(), &ServerRules::default())
+    }
+
+    pub fn new_with_config(env: &ServerEnv, rules: &ServerRules) -> Self {
         let mut world = Self {
-            world_seed: rules::WORLD_SEED,
-            map_id: rules::MAP_ID,
+            world_seed: env.world_seed,
+            map_id: env.map_id,
             tick: 0,
-            observation_radius: rules::OBSERVATION_RADIUS,
+            observation_radius: rules.observation_radius,
             players: HashMap::new(),
             entities: HashMap::new(),
             buildings: HashMap::new(),
@@ -81,10 +90,14 @@ impl WorldState {
         entities
     }
 
-    pub fn player_runtime_profile(&self, player_id: u64) -> Option<crate::model::RuntimeProfile> {
+    pub fn player_runtime_profile_with_rules(
+        &self,
+        player_id: u64,
+        rules: &ServerRules,
+    ) -> Option<crate::model::RuntimeProfile> {
         self.players
             .get(&player_id)
-            .map(|player| player.core_tier.runtime_profile())
+            .map(|player| rules.runtime_profile(player.core_tier))
     }
 
     pub fn visible_tiles_for(&self, player_id: u64) -> Vec<Tile> {
@@ -171,6 +184,16 @@ impl WorldState {
                 target,
                 building_kind,
             } => self.apply_build(player_id, actor_entity_id, target, building_kind),
+            ValidatedAction::Lift {
+                actor_entity_id,
+                kind,
+                amount,
+            } => self.apply_lift(actor_entity_id, kind, amount),
+            ValidatedAction::Put {
+                actor_entity_id,
+                kind,
+                amount,
+            } => self.apply_put(actor_entity_id, kind, amount),
         }
     }
 
@@ -250,6 +273,83 @@ impl WorldState {
         )
     }
 
+    fn apply_lift(&mut self, actor_entity_id: u64, kind: ResourceKind, amount: u32) -> String {
+        let position = self
+            .entities
+            .get(&actor_entity_id)
+            .expect("validated lift actor must exist")
+            .position;
+        let tile = self.tile_at(position);
+        let lifted = tile
+            .resource
+            .filter(|r| r.kind == kind)
+            .map(|r| amount.min(r.amount))
+            .unwrap_or(0);
+        if lifted > 0 {
+            let remaining = tile.resource.map(|r| r.amount).unwrap_or(0) - lifted;
+            self.set_tile_resource(
+                position,
+                (remaining > 0).then_some(ResourceStack {
+                    kind,
+                    amount: remaining,
+                }),
+            );
+        }
+        if lifted > 0 {
+            let entity = self
+                .entities
+                .get_mut(&actor_entity_id)
+                .expect("validated lift actor must exist");
+            add_cargo(
+                entity,
+                ResourceStack {
+                    kind,
+                    amount: lifted,
+                },
+            );
+        }
+
+        format!(
+            "entity {actor_entity_id} lifted {lifted} {:?} at ({}, {})",
+            kind, position.x, position.y
+        )
+    }
+
+    fn apply_put(&mut self, actor_entity_id: u64, kind: ResourceKind, amount: u32) -> String {
+        let position = self
+            .entities
+            .get(&actor_entity_id)
+            .expect("validated put actor must exist")
+            .position;
+        let put = {
+            let entity = self
+                .entities
+                .get_mut(&actor_entity_id)
+                .expect("validated put actor must exist");
+            remove_cargo(entity, kind, amount)
+        };
+        if put > 0 {
+            let tile = self.tile_at(position);
+            let new_amount = tile
+                .resource
+                .filter(|r| r.kind == kind)
+                .map(|r| r.amount + put)
+                .unwrap_or(put);
+            self.set_tile_resource(
+                position,
+                Some(ResourceStack {
+                    kind,
+                    amount: new_amount,
+                }),
+            );
+        }
+
+        format!(
+            "entity {actor_entity_id} put {put} {:?} at ({}, {})",
+            kind, position.x, position.y
+        )
+    }
+
     fn set_tile_resource(&mut self, position: Position, resource: Option<ResourceStack>) {
         self.tile_overrides.entry(position).or_default().resource = Some(resource);
     }
@@ -317,21 +417,10 @@ impl WorldState {
     }
 }
 
-fn add_cargo(entity: &mut Entity, resource: ResourceStack) {
-    if let Some(existing) = entity
-        .cargo
-        .iter_mut()
-        .find(|existing| existing.kind == resource.kind)
-    {
-        existing.amount += resource.amount;
-    } else {
-        entity.cargo.push(resource);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rules::{ServerEnv, ServerRules};
 
     #[test]
     fn creates_initial_player_entities_and_core_building() {
@@ -368,5 +457,23 @@ mod tests {
                 .iter()
                 .any(|tile| tile.position == Position::new(1, 0))
         );
+    }
+
+    #[test]
+    fn creates_world_from_server_env_and_rules() {
+        let env = ServerEnv {
+            world_seed: 42,
+            map_id: 2,
+        };
+        let rules = ServerRules {
+            observation_radius: 3,
+            ..ServerRules::default()
+        };
+
+        let world = WorldState::new_with_config(&env, &rules);
+
+        assert_eq!(world.world_seed, 42);
+        assert_eq!(world.map_id, 2);
+        assert_eq!(world.observation_radius, 3);
     }
 }

@@ -1,6 +1,6 @@
-mod flatbuffer_reader;
+mod bot;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    flatbuffer_reader::run_sample_bot()?;
+    bot::run_sample_bot()?;
     Ok(())
 }

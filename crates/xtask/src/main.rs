@@ -7,14 +7,14 @@ use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
-const DEFAULT_EXAMPLE_INPUT: &str = "target/flatbuffers_examples/game_input_example.bwi";
-const DEFAULT_BOT_OUTPUT: &str = "/tmp/game_output.bwo";
 const DEFAULT_BOT_PATH: &str = "target/debug/rand-game-binary";
 const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:3000";
 const DEFAULT_PLAYER_ID: &str = "1";
 const DEFAULT_MAP_VIEW_X: &str = "0";
 const DEFAULT_MAP_VIEW_Y: &str = "0";
 const DEFAULT_MAP_VIEW_RADIUS: &str = "8";
+const E2E_SERVER_ADDR: &str = "127.0.0.1:3100";
+const E2E_RULES_PATH: &str = "target/e2e/server.rules.toml";
 
 fn main() {
     if let Err(err) = run() {
@@ -33,16 +33,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     match command.as_str() {
         "help" | "-h" | "--help" => print_help(),
         "build" => build_all()?,
-        "fmt" => cargo(&["fmt"])?,
-        "check" => cargo(&["check"])?,
-        "test" => test_loop(args.collect())?,
         "validate" => validate()?,
         "gen-examples" => gen_examples(args.collect())?,
-        "build-bot" => build_bot()?,
-        "run-bot" => run_bot(args.collect())?,
         "server" => server(args.collect())?,
+        "server-debug" => server_debug()?,
         "upload-bot" => upload_bot(args.collect())?,
         "map-view" => map_view(args.collect())?,
+        "user-debug" => user_debug()?,
+        "e2e-debug" => e2e_debug()?,
         "clean-state" => clean_state()?,
         other => {
             return Err(format!("unknown command `{other}`. Try `cargo xtask help`. ").into());
@@ -54,28 +52,26 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
 fn print_help() {
     println!(
-        "rand-game xtask\n\
-\n\
-Usage:\n\
-  cargo xtask <command> [options]\n\
-\n\
-Commands:\n\
-  build                       Build server, common, binary, and client crates\n\
-  fmt                         Run cargo fmt\n\
-  check                       Run cargo check\n\
-  test [map-view options]     Build bot, run server, upload bot, then print map-view every second\n\
-  validate                    Run cargo fmt --check, cargo check, cargo test, cargo clippy\n\
-  gen-examples [--out-dir P]   Generate framed FlatBuffers example files\n\
-  build-bot                   Build rand-game-binary\n\
-  run-bot [--input P] [--output P]\n\
-                              Build bot, generate examples, run sample bot\n\
-  server [--debug-max-actions N]\n\
-                              Run rand-game-server\n\
-  upload-bot [--player-id N] [--path P] [--addr HOST:PORT]\n\
-                              Upload a bot binary to the running server\n\
-  map-view [--player-id N] [--map-id N] [--x N] [--y N] [--radius N] [--addr HOST:PORT]\n\
-                              Print an ASCII map from the running server\n\
-  clean-state                 Delete var/server and var/bots\n"
+        r#"rand-game xtask
+
+Usage:
+  cargo xtask <command> [options]
+
+Commands:
+  build                       Build server, common, binary, and client crates
+  validate                    Run cargo fmt --check, cargo check, cargo test, cargo clippy
+  gen-examples [--out-dir P]   Generate framed FlatBuffers example files
+  server [--addr HOST:PORT] [--env-path P] [--rules-path P] [--debug-max-actions N]
+                              Run rand-game-server
+  server-debug                Clean local state and run server with debug action limit
+  upload-bot [--player-id N] [--path P] [--addr HOST:PORT]
+                              Upload a bot binary to the running server
+  map-view [--player-id N] [--map-id N] [--x N] [--y N] [--radius N] [--addr HOST:PORT]
+                              Print an ASCII map from the running server
+  user-debug                  Upload default bot and run client map-view
+  e2e-debug                   Run server, upload bot, and verify world changes
+  clean-state                 Delete var/server and var/bots
+"#
     );
 }
 
@@ -116,121 +112,46 @@ fn build_bot() -> Result<(), Box<dyn std::error::Error>> {
     cargo(&["build", "-p", "rand-game-binary"])
 }
 
-fn run_bot(args: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
-    let options = parse_options(args)?;
-    let input = options
-        .input
-        .unwrap_or_else(|| DEFAULT_EXAMPLE_INPUT.into());
-    let output = options.output.unwrap_or_else(|| DEFAULT_BOT_OUTPUT.into());
-
-    build_bot()?;
-    gen_examples(Vec::new())?;
-
-    if let Some(parent) = Path::new(&output).parent()
-        && !parent.as_os_str().is_empty()
-    {
-        fs::create_dir_all(parent)?;
-    }
-
-    let input_file = fs::File::open(&input)?;
-    let output_file = fs::File::create(&output)?;
-    let status = Command::new(DEFAULT_BOT_PATH)
-        .stdin(Stdio::from(input_file))
-        .stdout(Stdio::from(output_file))
-        .status()?;
-
-    if !status.success() {
-        return Err(format!("sample bot failed with status {status}").into());
-    }
-
-    println!("wrote {output}");
-    Ok(())
-}
-
 fn server(args: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
     let options = parse_options(args)?;
     let mut cargo_args = vec!["run", "-p", "rand-game-server"];
+    let mut has_server_args = false;
+
+    if let Some(env_path) = options.env_path.as_deref() {
+        push_server_arg(&mut cargo_args, &mut has_server_args, "--env-path");
+        cargo_args.push(env_path);
+    }
+    if let Some(addr) = options.addr.as_deref() {
+        push_server_arg(&mut cargo_args, &mut has_server_args, "--addr");
+        cargo_args.push(addr);
+    }
+    if let Some(rules_path) = options.rules_path.as_deref() {
+        push_server_arg(&mut cargo_args, &mut has_server_args, "--rules-path");
+        cargo_args.push(rules_path);
+    }
 
     if let Some(debug_max_actions) = options.debug_max_actions.as_deref() {
-        cargo_args.extend(["--", "--debug-max-actions", debug_max_actions]);
+        push_server_arg(&mut cargo_args, &mut has_server_args, "--debug-max-actions");
+        cargo_args.push(debug_max_actions);
+    }
+    if options.log_bot_stderr {
+        push_server_arg(&mut cargo_args, &mut has_server_args, "--log-bot-stderr");
     }
 
     cargo(&cargo_args)
 }
 
-fn test_loop(args: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
-    let options = parse_options(args.clone())?;
-    let addr = options.addr.unwrap_or_else(|| DEFAULT_SERVER_ADDR.into());
-
-    build_bot()?;
-    let mut server = spawn_server(options.debug_max_actions.as_deref())?;
-
-    if let Err(err) = wait_for_server(&addr, Duration::from_secs(10)) {
-        stop_server(&mut server);
-        return Err(err);
+fn push_server_arg<'a>(args: &mut Vec<&'a str>, has_server_args: &mut bool, value: &'a str) {
+    if !*has_server_args {
+        args.push("--");
+        *has_server_args = true;
     }
-
-    if let Err(err) = upload_bot(args.clone()) {
-        stop_server(&mut server);
-        return Err(err);
-    }
-
-    loop {
-        if let Some(status) = server.try_wait()? {
-            return Err(format!("server exited with status {status}").into());
-        }
-
-        if let Err(err) = map_view(args.clone()) {
-            eprintln!("map-view failed: {err}");
-        }
-
-        thread::sleep(Duration::from_secs(1));
-    }
+    args.push(value);
 }
 
-fn spawn_server(debug_max_actions: Option<&str>) -> Result<Child, Box<dyn std::error::Error>> {
-    let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".into());
-    let mut args = vec!["run", "-p", "rand-game-server"];
-
-    if let Some(debug_max_actions) = debug_max_actions {
-        args.extend(["--", "--debug-max-actions", debug_max_actions]);
-    }
-
-    println!("$ {cargo} {}", args.join(" "));
-    Ok(Command::new(cargo).args(args).spawn()?)
-}
-
-fn wait_for_server(addr: &str, timeout: Duration) -> Result<(), Box<dyn std::error::Error>> {
-    let request = format!(
-        "GET /health HTTP/1.1\r\n\
-Host: {addr}\r\n\
-Connection: close\r\n\r\n"
-    );
-    let started_at = Instant::now();
-
-    while started_at.elapsed() < timeout {
-        if let Ok(response) = http_request(addr, &request)
-            && response
-                .lines()
-                .next()
-                .is_some_and(|status| status.contains(" 200 "))
-        {
-            return Ok(());
-        }
-
-        thread::sleep(Duration::from_millis(200));
-    }
-
-    Err(format!("server did not become ready at {addr}").into())
-}
-
-fn stop_server(server: &mut Child) {
-    if let Err(err) = server.kill() {
-        eprintln!("failed to stop server: {err}");
-    }
-    if let Err(err) = server.wait() {
-        eprintln!("failed to wait for server: {err}");
-    }
+fn server_debug() -> Result<(), Box<dyn std::error::Error>> {
+    clean_state()?;
+    server(vec!["--debug-max-actions".into(), "1000".into()])
 }
 
 fn upload_bot(args: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
@@ -312,6 +233,202 @@ Connection: close\r\n\r\n"
     Ok(())
 }
 
+fn user_debug() -> Result<(), Box<dyn std::error::Error>> {
+    upload_bot(Vec::new())?;
+    cargo(&[
+        "run",
+        "-p",
+        "client",
+        "--",
+        "map-view",
+        "--player-id",
+        "1",
+        "--x",
+        "0",
+        "--y",
+        "0",
+    ])
+}
+
+fn e2e_debug() -> Result<(), Box<dyn std::error::Error>> {
+    clean_state()?;
+    build_bot()?;
+    write_e2e_rules()?;
+
+    let mut server = spawn_e2e_server()?;
+    wait_for_server(E2E_SERVER_ADDR, &mut server)?;
+
+    upload_bot(vec!["--addr".into(), E2E_SERVER_ADDR.into()])?;
+    let initial_health = get_body(E2E_SERVER_ADDR, "/health")?;
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut last_health = initial_health.clone();
+    let mut last_entities = String::new();
+    let mut last_action_log = String::new();
+    let mut last_map_view = String::new();
+
+    while Instant::now() < deadline {
+        server.ensure_running()?;
+        thread::sleep(Duration::from_millis(100));
+
+        last_health = get_body(E2E_SERVER_ADDR, "/health")?;
+        last_entities = get_body(E2E_SERVER_ADDR, "/entities")?;
+        last_action_log = get_body(E2E_SERVER_ADDR, "/action-log")?;
+        last_map_view = get_body(E2E_SERVER_ADDR, "/map-view?player_id=1&x=0&y=0&radius=8")?;
+
+        if health_has_entries(&last_health)
+            && entities_have_cargo(&last_entities)
+            && action_log_has_bot_action(&last_action_log)
+            && map_view_is_valid(&last_map_view)
+        {
+            println!("e2e-debug passed");
+            println!("health: {last_health}");
+            return Ok(());
+        }
+    }
+
+    Err(format!(
+        "e2e-debug timed out\ninitial health: {initial_health}\nlast health: {last_health}\nlast entities: {last_entities}\nlast action-log: {last_action_log}\nlast map-view:\n{last_map_view}"
+    )
+    .into())
+}
+
+fn write_e2e_rules() -> Result<(), Box<dyn std::error::Error>> {
+    let path = Path::new(E2E_RULES_PATH);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(
+        path,
+        r#"tick_interval_ms = 50
+observation_radius = 8
+
+[basic_core]
+run_interval_ticks = 1
+cpu_time_ms = 50
+wall_time_ms = 250
+memory_bytes = 67108864
+stdout_bytes = 65536
+stderr_bytes = 65536
+max_actions = 1000
+max_persistent_memory_bytes = 4096
+"#,
+    )?;
+    Ok(())
+}
+
+fn spawn_e2e_server() -> Result<ServerProcess, Box<dyn std::error::Error>> {
+    let cargo = cargo_bin();
+    println!(
+        "$ {cargo} run -p rand-game-server -- --addr {E2E_SERVER_ADDR} --rules-path {E2E_RULES_PATH} --debug-max-actions 1000"
+    );
+    let child = Command::new(cargo)
+        .args([
+            "run",
+            "-p",
+            "rand-game-server",
+            "--",
+            "--addr",
+            E2E_SERVER_ADDR,
+            "--rules-path",
+            E2E_RULES_PATH,
+            "--debug-max-actions",
+            "1000",
+        ])
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()?;
+    Ok(ServerProcess { child })
+}
+
+fn wait_for_server(
+    addr: &str,
+    server: &mut ServerProcess,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline {
+        server.ensure_running()?;
+        if get_body(addr, "/health").is_ok() {
+            return Ok(());
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+    Err(format!("server did not become ready at {addr}").into())
+}
+
+fn get_body(addr: &str, path: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let request = format!(
+        "GET {path} HTTP/1.1\r\n\
+Host: {addr}\r\n\
+Connection: close\r\n\r\n"
+    );
+    let response = http_request(addr, &request)?;
+    let status_line = response.lines().next().unwrap_or("<empty response>");
+    if !status_line.contains(" 200 ") {
+        return Err(format!("GET {path} failed: {status_line}").into());
+    }
+    Ok(response.split("\r\n\r\n").nth(1).unwrap_or_default().into())
+}
+
+fn health_has_entries(health: &str) -> bool {
+    json_number_after(health, "\"action_log_entries\":").is_some_and(|entries| entries > 0)
+}
+
+fn entities_have_cargo(entities: &str) -> bool {
+    let mut rest = entities;
+    while let Some(index) = rest.find("\"amount\":") {
+        rest = &rest[index + "\"amount\":".len()..];
+        if json_leading_number(rest).is_some_and(|amount| amount > 0) {
+            return true;
+        }
+    }
+    false
+}
+
+fn action_log_has_bot_action(action_log: &str) -> bool {
+    action_log.contains("\"Mine\"") || action_log.contains("mined")
+}
+
+fn map_view_is_valid(map_view: &str) -> bool {
+    map_view.contains("tick=") && map_view.contains("reveal_all=true") && map_view.contains('E')
+}
+
+fn json_number_after(input: &str, marker: &str) -> Option<u64> {
+    let (_, rest) = input.split_once(marker)?;
+    json_leading_number(rest)
+}
+
+fn json_leading_number(input: &str) -> Option<u64> {
+    let digits = input
+        .trim_start()
+        .chars()
+        .take_while(|ch| ch.is_ascii_digit())
+        .collect::<String>();
+    (!digits.is_empty()).then(|| digits.parse().ok()).flatten()
+}
+
+struct ServerProcess {
+    child: Child,
+}
+
+impl ServerProcess {
+    fn ensure_running(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(status) = self.child.try_wait()? {
+            return Err(format!("server exited early with status {status}").into());
+        }
+        Ok(())
+    }
+}
+
+impl Drop for ServerProcess {
+    fn drop(&mut self) {
+        if self.child.try_wait().ok().flatten().is_none() {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+        }
+    }
+}
+
 fn clean_state() -> Result<(), Box<dyn std::error::Error>> {
     remove_dir_if_exists(PathBuf::from("var/server"))?;
     remove_dir_if_exists(PathBuf::from("var/bots"))?;
@@ -331,7 +448,7 @@ fn remove_dir_if_exists(path: PathBuf) -> Result<(), Box<dyn std::error::Error>>
 }
 
 fn cargo(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
-    let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".into());
+    let cargo = cargo_bin();
     println!("$ {cargo} {}", args.join(" "));
 
     let status = Command::new(cargo).args(args).status()?;
@@ -342,11 +459,13 @@ fn cargo(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn cargo_bin() -> String {
+    env::var("CARGO").unwrap_or_else(|_| "cargo".into())
+}
+
 #[derive(Debug, Default)]
 struct Options {
     out_dir: Option<String>,
-    input: Option<String>,
-    output: Option<String>,
     player_id: Option<String>,
     map_id: Option<String>,
     x: Option<String>,
@@ -355,6 +474,9 @@ struct Options {
     path: Option<String>,
     addr: Option<String>,
     debug_max_actions: Option<String>,
+    env_path: Option<String>,
+    rules_path: Option<String>,
+    log_bot_stderr: bool,
 }
 
 fn parse_options(args: Vec<String>) -> Result<Options, Box<dyn std::error::Error>> {
@@ -364,8 +486,6 @@ fn parse_options(args: Vec<String>) -> Result<Options, Box<dyn std::error::Error
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--out-dir" => options.out_dir = Some(required_value(&arg, iter.next())?),
-            "--input" => options.input = Some(required_value(&arg, iter.next())?),
-            "--output" => options.output = Some(required_value(&arg, iter.next())?),
             "--player-id" => options.player_id = Some(required_value(&arg, iter.next())?),
             "--map-id" => options.map_id = Some(required_value(&arg, iter.next())?),
             "--x" => options.x = Some(required_value(&arg, iter.next())?),
@@ -376,6 +496,9 @@ fn parse_options(args: Vec<String>) -> Result<Options, Box<dyn std::error::Error
             "--debug-max-actions" => {
                 options.debug_max_actions = Some(required_value(&arg, iter.next())?)
             }
+            "--env-path" => options.env_path = Some(required_value(&arg, iter.next())?),
+            "--rules-path" => options.rules_path = Some(required_value(&arg, iter.next())?),
+            "--log-bot-stderr" => options.log_bot_stderr = true,
             other => return Err(format!("unknown option `{other}`").into()),
         }
     }
