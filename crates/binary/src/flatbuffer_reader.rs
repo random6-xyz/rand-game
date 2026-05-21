@@ -20,10 +20,22 @@ struct ResourceTile {
     amount: u32,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct Actor {
     id: u64,
     position: Position,
+    #[allow(dead_code)]
+    cargo: SmallCargo,
+}
+
+#[derive(Debug, Clone, Default)]
+struct SmallCargo {
+    iron: u32,
+    copper: u32,
+    energy: u32,
+    stone: u32,
+    tree: u32,
+    water: u32,
 }
 
 pub fn run_sample_bot() -> Result<(), Box<dyn std::error::Error>> {
@@ -93,9 +105,25 @@ fn ready_actors(observation: Observation<'_>) -> Vec<Actor> {
         let Some(position) = entity.position().map(to_position) else {
             continue;
         };
+        let mut cargo = SmallCargo::default();
+        if let Some(items) = entity.cargo() {
+            for i in 0..items.len() {
+                let stack = items.get(i);
+                match stack.kind() {
+                    ResourceKind::Iron => cargo.iron += stack.amount(),
+                    ResourceKind::Copper => cargo.copper += stack.amount(),
+                    ResourceKind::Energy => cargo.energy += stack.amount(),
+                    ResourceKind::Stone => cargo.stone += stack.amount(),
+                    ResourceKind::Tree => cargo.tree += stack.amount(),
+                    ResourceKind::Water => cargo.water += stack.amount(),
+                    _ => {}
+                }
+            }
+        }
         actors.push(Actor {
             id: entity.id(),
             position,
+            cargo,
         });
     }
 
@@ -561,6 +589,7 @@ mod tests {
         let actors = [Actor {
             id: 3,
             position: Position { x: 0, y: 0 },
+            cargo: SmallCargo::default(),
         }];
         let resources = [ResourceTile {
             position: Position { x: 3, y: 0 },
@@ -584,6 +613,7 @@ mod tests {
         let actors = vec![Actor {
             id: 3,
             position: Position { x: 0, y: 0 },
+            cargo: SmallCargo::default(),
         }];
         let resources = vec![ResourceTile {
             position: Position { x: 3, y: 0 },

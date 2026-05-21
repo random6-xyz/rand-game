@@ -73,6 +73,16 @@ pub enum ValidatedAction {
         target: Position,
         building_kind: BuildingKind,
     },
+    Lift {
+        actor_entity_id: u64,
+        kind: ResourceKind,
+        amount: u32,
+    },
+    Put {
+        actor_entity_id: u64,
+        kind: ResourceKind,
+        amount: u32,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

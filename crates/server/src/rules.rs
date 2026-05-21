@@ -9,7 +9,7 @@ use crate::world::WorldState;
 pub const WORLD_SEED: u64 = 0x5241_4e44_4741_4d45;
 pub const MAP_ID: u32 = 0;
 pub const OBSERVATION_RADIUS: u32 = 8;
-pub const MAX_MINE_AMOUNT: u32 = 25;
+pub const MAX_MINE_AMOUNT: u32 = 1;
 
 const RESOURCE_CLUSTER_SIZE: i32 = 12;
 const RESOURCE_CLUSTER_GAP: i32 = 1;
@@ -90,6 +90,8 @@ pub fn validate_action(
         fb::ActionKind::Move => validate_move(world, actor.position, action),
         fb::ActionKind::Mine => validate_mine(world, actor.position, action),
         fb::ActionKind::Build => validate_build(world, player_id, actor.position, action),
+        fb::ActionKind::Lift => validate_lift(world, actor.position, action),
+        fb::ActionKind::Put => validate_put(actor.cargo.as_slice(), action),
         other => Err(format!("unsupported action kind {other:?}")),
     }
 }
@@ -177,6 +179,69 @@ fn required_target_position(action: fb::Action<'_>, kind: &str) -> Result<Positi
         .ok_or_else(|| format!("{kind:?} action requires target_position"))
 }
 
+fn validate_lift(
+    world: &WorldState,
+    actor_position: Position,
+    action: fb::Action<'_>,
+) -> Result<ValidatedAction, String> {
+    let tile = world.tile_at(actor_position);
+    let Some(resource) = tile.resource else {
+        return Err("lift target tile has no resource".into());
+    };
+    let fb_resource = action.resource().ok_or("lift action requires resource field")?;
+    let kind = to_model_resource_kind(fb_resource.kind())
+        .ok_or("lift action has invalid resource kind")?;
+    if resource.kind != kind {
+        return Err("lift resource kind does not match tile resource kind".into());
+    }
+    let amount = action.amount().clamp(1, MAX_MINE_AMOUNT);
+    if amount > resource.amount {
+        return Err("lift amount exceeds remaining resource".into());
+    }
+
+    Ok(ValidatedAction::Lift {
+        actor_entity_id: action.actor_entity_id(),
+        kind,
+        amount,
+    })
+}
+
+fn validate_put(
+    actor_cargo: &[ResourceStack],
+    action: fb::Action<'_>,
+) -> Result<ValidatedAction, String> {
+    let fb_resource = action.resource().ok_or("put action requires resource field")?;
+    let kind = to_model_resource_kind(fb_resource.kind())
+        .ok_or("put action has invalid resource kind")?;
+    let available = actor_cargo
+        .iter()
+        .filter(|stack| stack.kind == kind)
+        .map(|stack| stack.amount)
+        .sum::<u32>();
+    if available == 0 {
+        return Err("put resource kind not in actor cargo".into());
+    }
+    let amount = action.amount().clamp(1, available);
+
+    Ok(ValidatedAction::Put {
+        actor_entity_id: action.actor_entity_id(),
+        kind,
+        amount,
+    })
+}
+
+fn to_model_resource_kind(kind: fb::ResourceKind) -> Option<ResourceKind> {
+    match kind {
+        fb::ResourceKind::Iron => Some(ResourceKind::Iron),
+        fb::ResourceKind::Copper => Some(ResourceKind::Copper),
+        fb::ResourceKind::Energy => Some(ResourceKind::Energy),
+        fb::ResourceKind::Stone => Some(ResourceKind::Stone),
+        fb::ResourceKind::Tree => Some(ResourceKind::Tree),
+        fb::ResourceKind::Water => Some(ResourceKind::Water),
+        _ => None,
+    }
+}
+
 pub fn generated_tile(world_seed: u64, map_id: u32, map_kind: MapKind, position: Position) -> Tile {
     let sample = hash_position(world_seed, map_id, position);
     let resource = generated_resource(world_seed, map_id, position, sample, map_kind);
@@ -228,7 +293,7 @@ fn generated_resource(
         }
     }
 
-    let amount = 80 + ((sample >> 16) % 421) as u32;
+    let amount = 5000 + ((sample >> 16) % 1000) as u32;
 
     Some(ResourceStack {
         kind: cluster.kind,
@@ -456,7 +521,7 @@ mod tests {
 
         assert_eq!(
             validate_action(&world, 1, action),
-            Err("unsupported action kind Lift".into())
+            Err("lift action requires resource field".into())
         );
     }
 }

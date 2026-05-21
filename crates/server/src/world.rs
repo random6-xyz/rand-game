@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::model::{
-    Building, BuildingKind, CoreTier, Entity, MapKind, Player, Position, ResourceStack, Tile,
-    TileOverride, ValidatedAction,
+    Building, BuildingKind, CoreTier, Entity, MapKind, Player, Position, ResourceKind,
+    ResourceStack, Tile, TileOverride, ValidatedAction,
 };
 use crate::rules;
 
@@ -171,6 +171,16 @@ impl WorldState {
                 target,
                 building_kind,
             } => self.apply_build(player_id, actor_entity_id, target, building_kind),
+            ValidatedAction::Lift {
+                actor_entity_id,
+                kind,
+                amount,
+            } => self.apply_lift(actor_entity_id, kind, amount),
+            ValidatedAction::Put {
+                actor_entity_id,
+                kind,
+                amount,
+            } => self.apply_put(actor_entity_id, kind, amount),
         }
     }
 
@@ -247,6 +257,87 @@ impl WorldState {
         format!(
             "entity {actor_entity_id} built {:?} {} at ({}, {})",
             building_kind, building_id, target.x, target.y
+        )
+    }
+
+    fn apply_lift(
+        &mut self,
+        actor_entity_id: u64,
+        kind: ResourceKind,
+        amount: u32,
+    ) -> String {
+        let position = self
+            .entities
+            .get(&actor_entity_id)
+            .expect("validated lift actor must exist")
+            .position;
+        let tile = self.tile_at(position);
+        let lifted = tile
+            .resource
+            .filter(|r| r.kind == kind)
+            .map(|r| amount.min(r.amount))
+            .unwrap_or(0);
+        if lifted > 0 {
+            let remaining = tile.resource.map(|r| r.amount).unwrap_or(0) - lifted;
+            self.set_tile_resource(
+                position,
+                (remaining > 0).then_some(ResourceStack {
+                    kind,
+                    amount: remaining,
+                }),
+            );
+        }
+        if lifted > 0 {
+            let entity = self
+                .entities
+                .get_mut(&actor_entity_id)
+                .expect("validated lift actor must exist");
+            add_cargo(entity, ResourceStack { kind, amount: lifted });
+        }
+
+        format!(
+            "entity {actor_entity_id} lifted {lifted} {:?} at ({}, {})",
+            kind, position.x, position.y
+        )
+    }
+
+    fn apply_put(
+        &mut self,
+        actor_entity_id: u64,
+        kind: ResourceKind,
+        amount: u32,
+    ) -> String {
+        let position = self
+            .entities
+            .get(&actor_entity_id)
+            .expect("validated put actor must exist")
+            .position;
+        let put = {
+            let entity = self
+                .entities
+                .get_mut(&actor_entity_id)
+                .expect("validated put actor must exist");
+            remove_cargo(entity, kind, amount)
+        };
+        if put > 0 {
+            let tile = self.tile_at(position);
+            let new_amount = tile
+                .resource
+                .filter(|r| r.kind == kind)
+                .map(|r| r.amount + put)
+                .unwrap_or(put);
+            self.set_tile_resource(
+                position,
+                Some(ResourceStack {
+                    kind,
+                    amount: new_amount,
+                }),
+            );
+        }
+
+        format!(
+            "entity {actor_entity_id} put {put} {:?} at ({}, {})",
+            kind, position.x, position.y
         )
     }
 
@@ -327,6 +418,31 @@ fn add_cargo(entity: &mut Entity, resource: ResourceStack) {
     } else {
         entity.cargo.push(resource);
     }
+}
+
+fn remove_cargo(entity: &mut Entity, kind: ResourceKind, amount: u32) -> u32 {
+    let available = entity
+        .cargo
+        .iter()
+        .filter(|stack| stack.kind == kind)
+        .map(|stack| stack.amount)
+        .sum::<u32>();
+    let removed = amount.min(available);
+    if removed == 0 {
+        return 0;
+    }
+    let mut remaining = removed;
+    entity.cargo.retain_mut(|stack| {
+        if stack.kind != kind || remaining == 0 {
+            return true;
+        }
+        let deduct = remaining.min(stack.amount);
+        stack.amount -= deduct;
+        remaining -= deduct;
+        stack.amount > 0
+    });
+
+    removed
 }
 
 #[cfg(test)]
