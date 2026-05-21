@@ -56,7 +56,7 @@ Commands:
   build                       Build server, common, binary, and client crates
   validate                    Run cargo fmt --check, cargo check, cargo test, cargo clippy
   gen-examples [--out-dir P]   Generate framed FlatBuffers example files
-  server [--debug-max-actions N]
+  server [--env-path P] [--rules-path P] [--debug-max-actions N]
                               Run rand-game-server
   server-debug                Clean local state and run server with debug action limit
   upload-bot [--player-id N] [--path P] [--addr HOST:PORT]
@@ -109,18 +109,34 @@ fn build_bot() -> Result<(), Box<dyn std::error::Error>> {
 fn server(args: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
     let options = parse_options(args)?;
     let mut cargo_args = vec!["run", "-p", "rand-game-server"];
+    let mut has_server_args = false;
+
+    if let Some(env_path) = options.env_path.as_deref() {
+        push_server_arg(&mut cargo_args, &mut has_server_args, "--env-path");
+        cargo_args.push(env_path);
+    }
+    if let Some(rules_path) = options.rules_path.as_deref() {
+        push_server_arg(&mut cargo_args, &mut has_server_args, "--rules-path");
+        cargo_args.push(rules_path);
+    }
 
     if let Some(debug_max_actions) = options.debug_max_actions.as_deref() {
-        cargo_args.extend(["--", "--debug-max-actions", debug_max_actions]);
+        push_server_arg(&mut cargo_args, &mut has_server_args, "--debug-max-actions");
+        cargo_args.push(debug_max_actions);
     }
     if options.log_bot_stderr {
-        if options.debug_max_actions.is_none() {
-            cargo_args.push("--");
-        }
-        cargo_args.push("--log-bot-stderr");
+        push_server_arg(&mut cargo_args, &mut has_server_args, "--log-bot-stderr");
     }
 
     cargo(&cargo_args)
+}
+
+fn push_server_arg<'a>(args: &mut Vec<&'a str>, has_server_args: &mut bool, value: &'a str) {
+    if !*has_server_args {
+        args.push("--");
+        *has_server_args = true;
+    }
+    args.push(value);
 }
 
 fn server_debug() -> Result<(), Box<dyn std::error::Error>> {
@@ -265,6 +281,8 @@ struct Options {
     path: Option<String>,
     addr: Option<String>,
     debug_max_actions: Option<String>,
+    env_path: Option<String>,
+    rules_path: Option<String>,
     log_bot_stderr: bool,
 }
 
@@ -285,6 +303,8 @@ fn parse_options(args: Vec<String>) -> Result<Options, Box<dyn std::error::Error
             "--debug-max-actions" => {
                 options.debug_max_actions = Some(required_value(&arg, iter.next())?)
             }
+            "--env-path" => options.env_path = Some(required_value(&arg, iter.next())?),
+            "--rules-path" => options.rules_path = Some(required_value(&arg, iter.next())?),
             "--log-bot-stderr" => options.log_bot_stderr = true,
             other => return Err(format!("unknown option `{other}`").into()),
         }

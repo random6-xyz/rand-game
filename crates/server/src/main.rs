@@ -15,7 +15,7 @@ use state::SharedState;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = config::parse_config()?;
-    let world = storage::load_world_or_default();
+    let world = storage::load_world_or_default(&config);
     let action_log = storage::load_action_log_or_default();
     println!(
         "server world initialized: seed={}, map_id={}, tick={}, radius={}",

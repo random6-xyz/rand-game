@@ -3,14 +3,16 @@ use rand_game_common::fb::{self, *};
 use rand_game_common::framing::{FrameKind, encode_frame};
 
 use crate::model;
+use crate::rules::ServerRules;
 use crate::world::WorldState;
 
 pub fn build_game_input_frame(
     world: &WorldState,
     player_id: u64,
+    rules: &ServerRules,
     debug_max_actions: Option<u32>,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let payload = build_game_input_payload(world, player_id, debug_max_actions)?;
+    let payload = build_game_input_payload(world, player_id, rules, debug_max_actions)?;
     if !game_input_buffer_has_identifier(&payload) {
         return Err("generated payload is not a BWI1 GameInput flatbuffer".into());
     }
@@ -21,6 +23,7 @@ pub fn build_game_input_frame(
 pub fn build_game_input_payload(
     world: &WorldState,
     player_id: u64,
+    rules: &ServerRules,
     debug_max_actions: Option<u32>,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let owned_entities = world.owned_entities(player_id);
@@ -30,7 +33,7 @@ pub fn build_game_input_payload(
         .ok_or("player has no owned entities")?;
     let visible_tiles = world.visible_tiles_for(player_id);
     let runtime_profile = world
-        .player_runtime_profile(player_id)
+        .player_runtime_profile_with_rules(player_id, rules)
         .ok_or("player has no runtime profile")?;
 
     let mut fbb = FlatBufferBuilder::new();
@@ -97,7 +100,7 @@ pub fn build_game_input_payload(
             tick: world.tick,
             map_id: world.map_id,
             map_kind: to_fb_map_kind(world.map_kind()),
-            ruleset_version: 1,
+            ruleset_version: rules.ruleset_version,
         },
     );
 
@@ -206,7 +209,8 @@ mod tests {
     #[test]
     fn builds_valid_framed_game_input() {
         let world = WorldState::new();
-        let frame = build_game_input_frame(&world, 1, None).expect("build input frame");
+        let rules = ServerRules::default();
+        let frame = build_game_input_frame(&world, 1, &rules, None).expect("build input frame");
         let payload = decode_frame(&frame, FrameKind::GameInput).expect("decode frame");
 
         assert!(game_input_buffer_has_identifier(payload));
@@ -216,11 +220,27 @@ mod tests {
     #[test]
     fn debug_max_actions_overrides_runtime_profile() {
         let world = WorldState::new();
-        let payload = build_game_input_payload(&world, 1, Some(1000)).expect("build input payload");
+        let rules = ServerRules::default();
+        let payload =
+            build_game_input_payload(&world, 1, &rules, Some(1000)).expect("build input payload");
         let input = root_as_game_input(&payload).expect("valid game input");
         let limits = input.runtime_limits().expect("runtime limits");
         let action_limits = limits.action_limits().expect("action limits");
 
         assert_eq!(action_limits.max_actions(), 1000);
+    }
+
+    #[test]
+    fn game_input_uses_configured_ruleset_version() {
+        let world = WorldState::new();
+        let rules = ServerRules {
+            ruleset_version: 7,
+            ..ServerRules::default()
+        };
+        let payload =
+            build_game_input_payload(&world, 1, &rules, None).expect("build input payload");
+        let input = root_as_game_input(&payload).expect("valid game input");
+
+        assert_eq!(input.world().expect("world").ruleset_version(), 7);
     }
 }

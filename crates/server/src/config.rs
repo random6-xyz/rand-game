@@ -1,9 +1,19 @@
+use std::path::{Path, PathBuf};
+
+use crate::rules::{ServerEnv, ServerRules};
 use crate::state::ServerConfig;
 
+const DEFAULT_ENV_PATH: &str = "config/server.env.toml";
+const DEFAULT_RULES_PATH: &str = "config/server.rules.toml";
+
 pub fn parse_config() -> Result<ServerConfig, Box<dyn std::error::Error>> {
+    let mut env_path = PathBuf::from(DEFAULT_ENV_PATH);
+    let mut rules_path = PathBuf::from(DEFAULT_RULES_PATH);
     let mut config = ServerConfig {
         debug_max_actions: parse_env_u32("RAND_GAME_DEBUG_MAX_ACTIONS")?,
         log_bot_stderr: parse_env_bool("RAND_GAME_LOG_BOT_STDERR")?,
+        env: ServerEnv::default(),
+        rules: ServerRules::default(),
     };
     let mut args = std::env::args().skip(1);
 
@@ -16,9 +26,15 @@ pub fn parse_config() -> Result<ServerConfig, Box<dyn std::error::Error>> {
             "--log-bot-stderr" => {
                 config.log_bot_stderr = true;
             }
+            "--env-path" => {
+                env_path = PathBuf::from(args.next().ok_or("missing value for --env-path")?);
+            }
+            "--rules-path" => {
+                rules_path = PathBuf::from(args.next().ok_or("missing value for --rules-path")?);
+            }
             "--help" | "-h" => {
                 println!(
-                    "rand-game-server\n\nUsage:\n  rand-game-server [--debug-max-actions N] [--log-bot-stderr]\n\nEnvironment:\n  RAND_GAME_DEBUG_MAX_ACTIONS=N\n  RAND_GAME_LOG_BOT_STDERR=1"
+                    "rand-game-server\n\nUsage:\n  rand-game-server [--env-path P] [--rules-path P] [--debug-max-actions N] [--log-bot-stderr]\n\nEnvironment:\n  RAND_GAME_DEBUG_MAX_ACTIONS=N\n  RAND_GAME_LOG_BOT_STDERR=1"
                 );
                 std::process::exit(0);
             }
@@ -26,7 +42,21 @@ pub fn parse_config() -> Result<ServerConfig, Box<dyn std::error::Error>> {
         }
     }
 
+    config.env = load_toml_or_default(&env_path)?;
+    config.rules = load_toml_or_default(&rules_path)?;
+
     Ok(config)
+}
+
+fn load_toml_or_default<T>(path: &Path) -> Result<T, Box<dyn std::error::Error>>
+where
+    T: Default + serde::de::DeserializeOwned,
+{
+    match std::fs::read_to_string(path) {
+        Ok(contents) => Ok(toml::from_str(&contents)?),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(T::default()),
+        Err(err) => Err(err.into()),
+    }
 }
 
 fn parse_env_u32(name: &str) -> Result<Option<u32>, Box<dyn std::error::Error>> {

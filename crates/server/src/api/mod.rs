@@ -18,12 +18,8 @@ use crate::storage;
 
 use self::map_view::render_ascii_map;
 
-const MAX_WORLD_RADIUS: i32 = 16;
-const MAX_DEBUG_MAP_VIEW_RADIUS: i32 = 128;
-const DEFAULT_WORLD_RADIUS: i32 = 4;
-const MAX_BOT_UPLOAD_BYTES: usize = 16 * 1024 * 1024;
-
 pub fn router(state: SharedState) -> Router {
+    let max_bot_upload_bytes = state.inner().config.rules.max_bot_upload_bytes;
     Router::new()
         .route("/health", get(health))
         .route("/world", get(world_region))
@@ -31,7 +27,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/entities", get(entities))
         .route("/action-log", get(action_log))
         .route("/bots", post(upload_bot))
-        .layer(DefaultBodyLimit::max(MAX_BOT_UPLOAD_BYTES))
+        .layer(DefaultBodyLimit::max(max_bot_upload_bytes))
         .with_state(state)
 }
 
@@ -57,13 +53,14 @@ async fn map_view(
     let y = query.y.unwrap_or_default();
     let debug_map_view = state.inner().config.debug_max_actions.is_some();
     let max_radius = if debug_map_view {
-        MAX_DEBUG_MAP_VIEW_RADIUS
+        state.inner().config.rules.max_debug_map_view_radius
     } else {
-        MAX_WORLD_RADIUS
-    };
+        state.inner().config.rules.max_map_view_radius
+    }
+    .max(0);
     let radius = query
         .radius
-        .unwrap_or(DEFAULT_WORLD_RADIUS)
+        .unwrap_or(state.inner().config.rules.default_world_radius)
         .clamp(0, max_radius);
     let center = Position::new(x, y);
 
@@ -98,8 +95,8 @@ async fn world_region(
     let y = query.y.unwrap_or_default();
     let radius = query
         .radius
-        .unwrap_or(DEFAULT_WORLD_RADIUS)
-        .clamp(0, MAX_WORLD_RADIUS);
+        .unwrap_or(state.inner().config.rules.default_world_radius)
+        .clamp(0, state.inner().config.rules.max_world_radius.max(0));
     let center = Position::new(x, y);
     let world = state.inner().world.lock().await;
     let mut tiles = Vec::new();
@@ -141,10 +138,11 @@ async fn upload_bot(
     if body.is_empty() {
         return Err((StatusCode::BAD_REQUEST, "empty bot upload".into()));
     }
-    if body.len() > MAX_BOT_UPLOAD_BYTES {
+    let max_bot_upload_bytes = state.inner().config.rules.max_bot_upload_bytes;
+    if body.len() > max_bot_upload_bytes {
         return Err((
             StatusCode::PAYLOAD_TOO_LARGE,
-            format!("bot upload exceeds {MAX_BOT_UPLOAD_BYTES} bytes"),
+            format!("bot upload exceeds {max_bot_upload_bytes} bytes"),
         ));
     }
 

@@ -11,7 +11,8 @@ use crate::state::SharedState;
 use crate::storage;
 
 pub async fn run_tick_loop(state: SharedState) {
-    let mut interval = tokio::time::interval(Duration::from_secs(1));
+    let tick_interval_ms = state.inner().config.rules.tick_interval_ms.max(1);
+    let mut interval = tokio::time::interval(Duration::from_millis(tick_interval_ms));
 
     loop {
         interval.tick().await;
@@ -29,7 +30,7 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
         let Some(player_id) = world.primary_player_id() else {
             return Ok(());
         };
-        let should_run = should_run_player_bot(&world, player_id);
+        let should_run = should_run_player_bot(&world, player_id, &state.inner().config.rules);
         if !should_run {
             return Ok(());
         }
@@ -43,6 +44,7 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
         let input_frame = protocol::build_game_input_frame(
             &world,
             player_id,
+            &state.inner().config.rules,
             state.inner().config.debug_max_actions,
         )?;
         Some((player_id, bot_path, input_frame))
@@ -68,6 +70,7 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
                 player_id,
                 tick,
                 &bot_result.output_payload,
+                &state.inner().config.rules,
                 state.inner().config.debug_max_actions,
                 &mut entries,
             )?;
@@ -76,6 +79,7 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
                 &world,
                 player_id,
                 &bot_result.output_payload,
+                &state.inner().config.rules,
                 state.inner().config.debug_max_actions,
             )?;
             for rejection in &validation.rejected {
@@ -112,6 +116,7 @@ fn apply_debug_output_sequentially(
     player_id: u64,
     tick: u64,
     output_payload: &[u8],
+    server_rules: &crate::rules::ServerRules,
     debug_max_actions: Option<u32>,
     entries: &mut Vec<ActionLogEntry>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -122,7 +127,7 @@ fn apply_debug_output_sequentially(
     }
 
     let runtime_profile = world
-        .player_runtime_profile(player_id)
+        .player_runtime_profile_with_rules(player_id, server_rules)
         .ok_or("player has no runtime profile")?;
     if let Some(memory) = output.persistent_memory() {
         if memory.len() > runtime_profile.max_persistent_memory_bytes as usize {
@@ -150,7 +155,7 @@ fn apply_debug_output_sequentially(
 
     for index in 0..actions.len().min(max_actions) {
         let action = actions.get(index);
-        match rules::validate_action(world, player_id, action) {
+        match rules::validate_action(world, player_id, action, server_rules) {
             Ok(action) => {
                 let result = world.apply_action(player_id, &action);
                 entries.push(ActionLogEntry::new(tick, player_id, action, result));
@@ -180,11 +185,18 @@ fn compact_entries(entries: Vec<ActionLogEntry>) -> Vec<ActionLogEntry> {
     compacted
 }
 
-fn should_run_player_bot(world: &crate::world::WorldState, player_id: u64) -> bool {
+fn should_run_player_bot(
+    world: &crate::world::WorldState,
+    player_id: u64,
+    rules: &crate::rules::ServerRules,
+) -> bool {
     let Some(player) = world.players.get(&player_id) else {
         return false;
     };
-    let interval = player.core_tier.runtime_profile().run_interval_ticks.max(1);
+    let interval = rules
+        .runtime_profile(player.core_tier)
+        .run_interval_ticks
+        .max(1);
     let run_phase = player.core_entity_id % interval;
     world.tick % interval == run_phase
 }

@@ -4,7 +4,7 @@ use crate::model::{Position, ResourceKind, ResourceStack, ValidatedAction};
 use crate::protocol;
 use crate::world::WorldState;
 
-use super::MAX_MINE_AMOUNT;
+use super::ServerRules;
 
 #[derive(Debug, Default)]
 pub struct ValidationReport {
@@ -17,6 +17,7 @@ pub fn validate_game_output(
     world: &WorldState,
     player_id: u64,
     output_payload: &[u8],
+    rules: &ServerRules,
     debug_max_actions: Option<u32>,
 ) -> Result<ValidationReport, Box<dyn std::error::Error>> {
     let output = fb::root_as_game_output(output_payload)?;
@@ -28,7 +29,7 @@ pub fn validate_game_output(
     }
 
     let runtime_profile = world
-        .player_runtime_profile(player_id)
+        .player_runtime_profile_with_rules(player_id, rules)
         .ok_or("player has no runtime profile")?;
     let max_actions = debug_max_actions.unwrap_or(runtime_profile.max_actions);
 
@@ -57,7 +58,7 @@ pub fn validate_game_output(
 
     for index in 0..actions.len().min(max_actions as usize) {
         let action = actions.get(index);
-        match validate_action(world, player_id, action) {
+        match validate_action(world, player_id, action, rules) {
             Ok(action) => report.actions.push(action),
             Err(reason) => report.rejected.push(format!("action {index}: {reason}")),
         }
@@ -70,6 +71,7 @@ pub fn validate_action(
     world: &WorldState,
     player_id: u64,
     action: fb::Action<'_>,
+    rules: &ServerRules,
 ) -> Result<ValidatedAction, String> {
     let actor = world
         .entities
@@ -80,9 +82,9 @@ pub fn validate_action(
     }
     match action.kind() {
         fb::ActionKind::Move => validate_move(world, actor.position, action),
-        fb::ActionKind::Mine => validate_mine(world, actor.position, action),
-        fb::ActionKind::Build => validate_build(world, player_id, actor.position, action),
-        fb::ActionKind::Lift => validate_lift(world, actor.position, action),
+        fb::ActionKind::Mine => validate_mine(world, actor.position, action, rules),
+        fb::ActionKind::Build => validate_build(world, player_id, actor.position, action, rules),
+        fb::ActionKind::Lift => validate_lift(world, actor.position, action, rules),
         fb::ActionKind::Put => validate_put(actor.cargo.as_slice(), action),
         other => Err(format!("unsupported action kind {other:?}")),
     }
@@ -111,6 +113,7 @@ fn validate_mine(
     world: &WorldState,
     actor_position: Position,
     action: fb::Action<'_>,
+    rules: &ServerRules,
 ) -> Result<ValidatedAction, String> {
     let target = required_target_position(action, "Mine")?;
     if actor_position.manhattan(target) != 1 {
@@ -118,7 +121,7 @@ fn validate_mine(
     }
     let tile = world.tile_at(target);
     let resource = tile.resource.ok_or("mine target has no resource")?;
-    let requested = action.amount().clamp(1, MAX_MINE_AMOUNT);
+    let requested = action.amount().clamp(1, rules.max_mine_amount.max(1));
     if requested > resource.amount {
         return Err("mine amount exceeds remaining resource".into());
     }
@@ -135,6 +138,7 @@ fn validate_build(
     player_id: u64,
     actor_position: Position,
     action: fb::Action<'_>,
+    rules: &ServerRules,
 ) -> Result<ValidatedAction, String> {
     let target = required_target_position(action, "Build")?;
     if actor_position.manhattan(target) != 1 {
@@ -146,7 +150,7 @@ fn validate_build(
     let near_owned_core = world.buildings.values().any(|building| {
         building.owner_id == player_id
             && building.kind == crate::model::BuildingKind::None
-            && building.position.manhattan(target) <= 4
+            && building.position.manhattan(target) <= rules.build_core_radius
     });
     if !near_owned_core {
         return Err("build target must be near owned core".into());
@@ -175,6 +179,7 @@ fn validate_lift(
     world: &WorldState,
     actor_position: Position,
     action: fb::Action<'_>,
+    rules: &ServerRules,
 ) -> Result<ValidatedAction, String> {
     let tile = world.tile_at(actor_position);
     let Some(resource) = tile.resource else {
@@ -188,7 +193,7 @@ fn validate_lift(
     if resource.kind != kind {
         return Err("lift resource kind does not match tile resource kind".into());
     }
-    let amount = action.amount().clamp(1, MAX_MINE_AMOUNT);
+    let amount = action.amount().clamp(1, rules.max_mine_amount.max(1));
     if amount > resource.amount {
         return Err("lift amount exceeds remaining resource".into());
     }
@@ -263,7 +268,7 @@ mod tests {
         let action = flatbuffers::root::<fb::Action<'_>>(fbb.finished_data()).expect("action");
 
         assert_eq!(
-            validate_action(&world, 1, action),
+            validate_action(&world, 1, action, &ServerRules::default()),
             Err("lift action requires resource field".into())
         );
     }

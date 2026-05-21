@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::action_log::ActionLog;
+use crate::rules::{ServerEnv, ServerRules};
 use crate::world::WorldState;
 
 #[derive(Clone)]
@@ -16,10 +17,12 @@ pub struct ServerState {
     pub config: ServerConfig,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ServerConfig {
     pub debug_max_actions: Option<u32>,
     pub log_bot_stderr: bool,
+    pub env: ServerEnv,
+    pub rules: ServerRules,
 }
 
 impl SharedState {

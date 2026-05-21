@@ -7,7 +7,7 @@ use crate::model::{
     Building, BuildingKind, CoreTier, Entity, MapKind, Player, Position, ResourceKind,
     ResourceStack, Tile, TileOverride, ValidatedAction,
 };
-use crate::rules;
+use crate::rules::{self, ServerEnv, ServerRules};
 
 use self::cargo::{add_cargo, remove_cargo};
 
@@ -25,12 +25,17 @@ pub struct WorldState {
 }
 
 impl WorldState {
+    #[cfg(test)]
     pub fn new() -> Self {
+        Self::new_with_config(&ServerEnv::default(), &ServerRules::default())
+    }
+
+    pub fn new_with_config(env: &ServerEnv, rules: &ServerRules) -> Self {
         let mut world = Self {
-            world_seed: rules::WORLD_SEED,
-            map_id: rules::MAP_ID,
+            world_seed: env.world_seed,
+            map_id: env.map_id,
             tick: 0,
-            observation_radius: rules::OBSERVATION_RADIUS,
+            observation_radius: rules.observation_radius,
             players: HashMap::new(),
             entities: HashMap::new(),
             buildings: HashMap::new(),
@@ -85,10 +90,14 @@ impl WorldState {
         entities
     }
 
-    pub fn player_runtime_profile(&self, player_id: u64) -> Option<crate::model::RuntimeProfile> {
+    pub fn player_runtime_profile_with_rules(
+        &self,
+        player_id: u64,
+        rules: &ServerRules,
+    ) -> Option<crate::model::RuntimeProfile> {
         self.players
             .get(&player_id)
-            .map(|player| player.core_tier.runtime_profile())
+            .map(|player| rules.runtime_profile(player.core_tier))
     }
 
     pub fn visible_tiles_for(&self, player_id: u64) -> Vec<Tile> {
@@ -411,6 +420,7 @@ impl WorldState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rules::{ServerEnv, ServerRules};
 
     #[test]
     fn creates_initial_player_entities_and_core_building() {
@@ -447,5 +457,23 @@ mod tests {
                 .iter()
                 .any(|tile| tile.position == Position::new(1, 0))
         );
+    }
+
+    #[test]
+    fn creates_world_from_server_env_and_rules() {
+        let env = ServerEnv {
+            world_seed: 42,
+            map_id: 2,
+        };
+        let rules = ServerRules {
+            observation_radius: 3,
+            ..ServerRules::default()
+        };
+
+        let world = WorldState::new_with_config(&env, &rules);
+
+        assert_eq!(world.world_seed, 42);
+        assert_eq!(world.map_id, 2);
+        assert_eq!(world.observation_radius, 3);
     }
 }
