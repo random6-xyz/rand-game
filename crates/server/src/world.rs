@@ -260,12 +260,7 @@ impl WorldState {
         )
     }
 
-    fn apply_lift(
-        &mut self,
-        actor_entity_id: u64,
-        kind: ResourceKind,
-        amount: u32,
-    ) -> String {
+    fn apply_lift(&mut self, actor_entity_id: u64, kind: ResourceKind, amount: u32) -> String {
         let position = self
             .entities
             .get(&actor_entity_id)
@@ -292,7 +287,13 @@ impl WorldState {
                 .entities
                 .get_mut(&actor_entity_id)
                 .expect("validated lift actor must exist");
-            add_cargo(entity, ResourceStack { kind, amount: lifted });
+            add_cargo(
+                entity,
+                ResourceStack {
+                    kind,
+                    amount: lifted,
+                },
+            );
         }
 
         format!(
@@ -301,12 +302,7 @@ impl WorldState {
         )
     }
 
-    fn apply_put(
-        &mut self,
-        actor_entity_id: u64,
-        kind: ResourceKind,
-        amount: u32,
-    ) -> String {
+    fn apply_put(&mut self, actor_entity_id: u64, kind: ResourceKind, amount: u32) -> String {
         let position = self
             .entities
             .get(&actor_entity_id)

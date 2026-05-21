@@ -188,7 +188,9 @@ fn validate_lift(
     let Some(resource) = tile.resource else {
         return Err("lift target tile has no resource".into());
     };
-    let fb_resource = action.resource().ok_or("lift action requires resource field")?;
+    let fb_resource = action
+        .resource()
+        .ok_or("lift action requires resource field")?;
     let kind = to_model_resource_kind(fb_resource.kind())
         .ok_or("lift action has invalid resource kind")?;
     if resource.kind != kind {
@@ -210,9 +212,11 @@ fn validate_put(
     actor_cargo: &[ResourceStack],
     action: fb::Action<'_>,
 ) -> Result<ValidatedAction, String> {
-    let fb_resource = action.resource().ok_or("put action requires resource field")?;
-    let kind = to_model_resource_kind(fb_resource.kind())
-        .ok_or("put action has invalid resource kind")?;
+    let fb_resource = action
+        .resource()
+        .ok_or("put action requires resource field")?;
+    let kind =
+        to_model_resource_kind(fb_resource.kind()).ok_or("put action has invalid resource kind")?;
     let available = actor_cargo
         .iter()
         .filter(|stack| stack.kind == kind)
