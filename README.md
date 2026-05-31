@@ -12,10 +12,10 @@ The current codebase includes a single-process server, FlatBuffers-based bot I/O
 - Deterministic 2D tile generation from `world_seed`, `map_id`, and coordinates
 - Delta-like world storage: changed tiles, entities, buildings, and players are saved to `var/server/world.bin`
 - Action log storage in `var/server/action-log.bin`
-- HTTP API for health, world queries, entities, action log, ASCII map view, and bot uploads
+- HTTP API for health, world queries, entities, action log, ASCII map view, bot uploads, and bot stderr streaming
 - Bot protocol using `magic + little-endian u32 length + FlatBuffer payload`
 - Sample bot that reads `GameInput` from stdin and writes `GameOutput` to stdout
-- Terminal client for API calls, bot uploads, and a colored ASCII map view
+- Terminal client for API calls, bot uploads, a colored ASCII map view, and bot stderr streaming
 - Local developer tooling for build, validation, server runs, debug runs, and E2E debug checks
 
 Sandboxing, production multi-player flows, a web map, monster/event simulation, and external storage are not implemented yet.
@@ -43,6 +43,7 @@ Run the interactive terminal map client:
 
 ```bash
 cargo run -p client -- map-view
+cargo run -p client -- bot-stderr --player-id 1
 ```
 
 Use `w/a/s/d` to move the viewport and `q` or `Ctrl-C` to quit.
@@ -101,6 +102,7 @@ Environment variables:
 - `GET /map-view?player_id=1&x=0&y=0&radius=8`: ASCII map view
 - `GET /entities`: entity JSON
 - `GET /action-log`: action log JSON
+- `GET /bot-stderr`: WebSocket stream of bot stderr event JSON; optional `player_id` query filters events
 - `POST /bots?player_id=1`: upload a bot executable
 
 ## Bot Protocol
@@ -133,6 +135,7 @@ Supported actions:
 - `Build`: build near an owned core on an adjacent empty tile
 - `Lift`: move resources from the current tile into entity cargo
 - `Put`: move resources from entity cargo onto the current tile
+- `Craft`: craft a generated recipe by `recipe_id` from entity cargo, optionally using a compatible owned building
 
 ## World And Rules
 
@@ -148,11 +151,12 @@ Configuration files:
 
 - `config/server.env.toml`: `world_seed`, `map_id`
 - `config/server.rules.toml`: tick interval, observation radius, API query radius, upload limit, and per-core-tier runtime profiles
+- `config/building.yaml`, `config/recipe.yaml`: source YAML catalogs compiled into `rand-game-common` at build time. The server and sample bot use the same generated Rust catalog; recipe ids are validated by the server for `Craft` actions.
 
 ## Crate Structure
 
 - `crates/server`: world state, rule validation, bot execution, storage, and HTTP API
-- `crates/client`: simple HTTP client and terminal map viewer
+- `crates/client`: simple HTTP/WebSocket client and terminal map viewer
 - `crates/common`: FlatBuffers schemas/generated code and frame utilities
 - `crates/binary`: sample bot using the server protocol
 - `crates/xtask`: development, validation, and debug task automation

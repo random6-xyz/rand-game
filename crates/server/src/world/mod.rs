@@ -4,7 +4,7 @@ use std::path::PathBuf;
 mod cargo;
 
 use crate::model::{
-    Building, BuildingKind, CoreTier, Entity, MapKind, Player, Position, ResourceKind,
+    Building, BuildingKind, CoreTier, Entity, ItemStack, MapKind, Player, Position, ResourceKind,
     ResourceStack, Tile, TileOverride, ValidatedAction,
 };
 use crate::rules::{self, ServerEnv, ServerRules};
@@ -194,6 +194,13 @@ impl WorldState {
                 kind,
                 amount,
             } => self.apply_put(actor_entity_id, kind, amount),
+            ValidatedAction::Craft {
+                actor_entity_id,
+                ref recipe_id,
+                ref inputs,
+                ref outputs,
+                ..
+            } => self.apply_craft(actor_entity_id, recipe_id, inputs, outputs),
         }
     }
 
@@ -235,8 +242,8 @@ impl WorldState {
         if let Some(entity) = self.entities.get_mut(&actor_entity_id) {
             add_cargo(
                 entity,
-                ResourceStack {
-                    kind: resource.kind,
+                ItemStack {
+                    kind: resource.kind.item_id().into(),
                     amount: mined,
                 },
             );
@@ -302,8 +309,8 @@ impl WorldState {
                 .expect("validated lift actor must exist");
             add_cargo(
                 entity,
-                ResourceStack {
-                    kind,
+                ItemStack {
+                    kind: kind.item_id().into(),
                     amount: lifted,
                 },
             );
@@ -326,7 +333,7 @@ impl WorldState {
                 .entities
                 .get_mut(&actor_entity_id)
                 .expect("validated put actor must exist");
-            remove_cargo(entity, kind, amount)
+            remove_cargo(entity, kind.item_id(), amount)
         };
         if put > 0 {
             let tile = self.tile_at(position);
@@ -348,6 +355,27 @@ impl WorldState {
             "entity {actor_entity_id} put {put} {:?} at ({}, {})",
             kind, position.x, position.y
         )
+    }
+
+    fn apply_craft(
+        &mut self,
+        actor_entity_id: u64,
+        recipe_id: &str,
+        inputs: &[ItemStack],
+        outputs: &[ItemStack],
+    ) -> String {
+        let entity = self
+            .entities
+            .get_mut(&actor_entity_id)
+            .expect("validated craft actor must exist");
+        for input in inputs {
+            remove_cargo(entity, &input.kind, input.amount);
+        }
+        for output in outputs {
+            add_cargo(entity, output.clone());
+        }
+
+        format!("entity {actor_entity_id} crafted {recipe_id}")
     }
 
     fn set_tile_resource(&mut self, position: Position, resource: Option<ResourceStack>) {
@@ -475,5 +503,41 @@ mod tests {
         assert_eq!(world.world_seed, 42);
         assert_eq!(world.map_id, 2);
         assert_eq!(world.observation_radius, 3);
+    }
+
+    #[test]
+    fn craft_action_consumes_inputs_and_adds_outputs() {
+        let mut world = WorldState::new();
+        let actor_id = world.players.get(&1).expect("player").worker_entity_id;
+        world.entities.get_mut(&actor_id).expect("actor").cargo = vec![ItemStack {
+            kind: "iron-ore".into(),
+            amount: 1,
+        }];
+
+        let result = world.apply_action(
+            1,
+            &ValidatedAction::Craft {
+                actor_entity_id: actor_id,
+                recipe_id: "iron-plate".into(),
+                target_building_id: None,
+                inputs: vec![ItemStack {
+                    kind: "iron-ore".into(),
+                    amount: 1,
+                }],
+                outputs: vec![ItemStack {
+                    kind: "iron-plate".into(),
+                    amount: 1,
+                }],
+            },
+        );
+
+        let cargo = &world.entities.get(&actor_id).expect("actor").cargo;
+        assert_eq!(result, format!("entity {actor_id} crafted iron-plate"));
+        assert!(!cargo.iter().any(|stack| stack.kind == "iron-ore"));
+        assert!(
+            cargo
+                .iter()
+                .any(|stack| stack.kind == "iron-plate" && stack.amount == 1)
+        );
     }
 }

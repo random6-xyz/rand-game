@@ -3,6 +3,7 @@ use std::path::PathBuf;
 mod map_view;
 
 use axum::body::Bytes;
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{DefaultBodyLimit, Query, State};
 use axum::http::StatusCode;
 use axum::http::header::CONTENT_TYPE;
@@ -26,6 +27,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/map-view", get(map_view))
         .route("/entities", get(entities))
         .route("/action-log", get(action_log))
+        .route("/bot-stderr", get(bot_stderr))
         .route("/bots", post(upload_bot))
         .layer(DefaultBodyLimit::max(max_bot_upload_bytes))
         .with_state(state)
@@ -130,6 +132,36 @@ async fn action_log(State(state): State<SharedState>) -> Json<Vec<ActionLogEntry
     Json(action_log.entries().to_vec())
 }
 
+async fn bot_stderr(
+    State(state): State<SharedState>,
+    Query(query): Query<BotStderrQuery>,
+    ws: WebSocketUpgrade,
+) -> Response {
+    ws.on_upgrade(move |socket| stream_bot_stderr(socket, state, query.player_id))
+}
+
+async fn stream_bot_stderr(mut socket: WebSocket, state: SharedState, player_id: Option<u64>) {
+    let mut receiver = state.inner().bot_stderr.subscribe();
+
+    loop {
+        let event = match receiver.recv().await {
+            Ok(event) => event,
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+            Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+        };
+        if player_id.is_some_and(|player_id| player_id != event.player_id) {
+            continue;
+        }
+
+        let Ok(text) = serde_json::to_string(&event) else {
+            continue;
+        };
+        if socket.send(Message::Text(text.into())).await.is_err() {
+            break;
+        }
+    }
+}
+
 async fn upload_bot(
     State(state): State<SharedState>,
     Query(query): Query<UploadQuery>,
@@ -210,6 +242,11 @@ struct MapViewQuery {
 
 #[derive(Debug, Deserialize)]
 struct UploadQuery {
+    player_id: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct BotStderrQuery {
     player_id: Option<u64>,
 }
 

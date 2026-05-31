@@ -1,0 +1,116 @@
+recipes:
+  - name: "Iron Plate"
+    id: "iron-plate"
+    max_stack: 1000
+    building:
+      - "entity"
+      - "fur-1"
+      - "fur-2"
+      - "fur-3"
+    inputs:
+      - kind: "iron-ore"
+        amount: 1
+    crafting_time: 5
+    outputs:
+      - kind: "iron-plate"
+        amount: 1
+
+  - name: "Copper Plate"
+    id: "copper-plate"
+    max_stack: 1000
+    building:
+      - "entity"
+      - "fur-1"
+      - "fur-2"
+      - "fur-3"
+    inputs:
+      - kind: "copper-ore"
+        amount: 1
+    crafting_time: 5
+    outputs:
+      - kind: "copper-plate"
+        amount: 1
+
+  - name: "Iron Gear"
+    id: "iron-gear"
+    max_stack: 1000
+    building:
+      - "entity"
+      - "asm-1"
+      - "asm-2"
+      - "asm-3"
+    inputs:
+      - kind: "iron-plate"
+        amount: 2
+    crafting_time: 2
+    outputs:
+      - kind: "iron-gear"
+        amount: 1
+
+  - name: "Iron Rod"
+    id: "iron-rod"
+    max_stack: 1000
+    building:
+      - "entity"
+      - "asm-1"
+      - "asm-2"
+      - "asm-3"
+    inputs:
+      - kind: "iron-plate"
+        amount: 1
+    crafting_time: 2
+    outputs:
+      - kind: "iron-rod"
+        amount: 2
+
+  - name: "Copper Wire"
+    id: "copper-wire"
+    max_stack: 1000
+    building:
+      - "entity"
+      - "asm-1"
+      - "asm-2"
+      - "asm-3"
+    inputs:
+      - kind: "copper-plate"
+        amount: 1
+    crafting_time: 2
+    outputs:
+      - kind: "copper-wire"
+        amount: 2
+
+  - name: "Basic Circuit"
+    id: "basic-circuit"
+    max_stack: 1000
+    building:
+      - "entity"
+      - "asm-1"
+      - "asm-2"
+      - "asm-3"
+    inputs:
+      - kind: "iron-plate"
+        amount: 1
+      - kind: "copper-wire"
+        amount: 3
+    crafting_time: 4
+    outputs:
+      - kind: "basic-circuit"
+        amount: 1
+
+  - name: "Conveyor Belt"
+    id: "conveyor-belt"
+    max_stack: 1000
+    building:
+      - "entity"
+      - "asm-1"
+      - "asm-2"
+      - "asm-3"
+    inputs:
+      - kind: "iron-plate"
+        amount: 1
+      - kind: "iron-gear"
+        amount: 1
+    crafting_time: 3
+    outputs:
+      - kind: "conveyor-belt"
+        amount: 2

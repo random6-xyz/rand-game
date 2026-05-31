@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use rand_game_common::rules::default_rule_catalog;
+
 use crate::rules::{ServerEnv, ServerRules};
 use crate::state::ServerConfig;
 
@@ -16,6 +18,7 @@ pub fn parse_config() -> Result<ServerConfig, Box<dyn std::error::Error>> {
         log_bot_stderr: parse_env_bool("RAND_GAME_LOG_BOT_STDERR")?,
         env: ServerEnv::default(),
         rules: ServerRules::default(),
+        rule_catalog: default_rule_catalog(),
     };
     let mut args = std::env::args().skip(1);
 

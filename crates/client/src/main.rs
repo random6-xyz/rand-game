@@ -38,6 +38,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         "world" => world(args.collect())?,
         "entities" => get_text("/entities", args.collect())?,
         "action-log" => get_text("/action-log", args.collect())?,
+        "bot-stderr" => bot_stderr(args.collect())?,
         "upload-bot" => upload_bot(args.collect())?,
         "map-view" => map_view::map_view(args.collect())?,
         other => return Err(format!("unknown command `{other}`. Try `client help`.").into()),
@@ -58,6 +59,7 @@ Commands:\n\
   world [--x N] [--y N] [--radius N]         Print world region JSON\n\
   entities                                   Print entities JSON\n\
   action-log                                 Print action log JSON\n\
+  bot-stderr [--player-id N]                 Stream bot stderr events\n\
   upload-bot [--player-id N] [--path P]      Upload a bot binary\n\
   map-view [--player-id N] [--map-id N]      Open an interactive ASCII map\n\
            [--x N] [--y N] [--radius N]\n\
@@ -120,5 +122,28 @@ Connection: close\r\n\r\n",
     stream.read_to_string(&mut response)?;
     let body = http::response_body(&response)?;
     println!("{body}");
+    Ok(())
+}
+
+fn bot_stderr(args: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
+    let options = options::parse_options(args)?;
+    let addr = options.addr.unwrap_or_else(|| DEFAULT_SERVER_ADDR.into());
+    let mut url = format!("ws://{addr}/bot-stderr");
+    if let Some(player_id) = options.player_id {
+        url.push_str("?player_id=");
+        url.push_str(&player_id);
+    }
+
+    let (mut socket, _) = tungstenite::connect(url.as_str())?;
+    loop {
+        let message = socket.read()?;
+        if message.is_close() {
+            break;
+        }
+        if let Ok(text) = message.to_text() {
+            println!("{text}");
+        }
+    }
+
     Ok(())
 }

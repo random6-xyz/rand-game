@@ -7,7 +7,8 @@ use crate::action_log::ActionLogEntry;
 use crate::protocol;
 use crate::rules;
 use crate::runner;
-use crate::state::SharedState;
+use crate::state::ServerConfig;
+use crate::state::{BotStderrEvent, SharedState};
 use crate::storage;
 
 pub async fn run_tick_loop(state: SharedState) {
@@ -47,16 +48,26 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
             &state.inner().config.rules,
             state.inner().config.debug_max_actions,
         )?;
-        Some((player_id, bot_path, input_frame))
+        Some((player_id, bot_path, world.tick, input_frame))
     };
 
-    let Some((player_id, bot_path, input_frame)) = run_request else {
+    let Some((player_id, bot_path, tick, input_frame)) = run_request else {
         return Ok(());
     };
 
     let bot_result = runner::run_bot(&bot_path, &input_frame)?;
-    if state.inner().config.log_bot_stderr && !bot_result.stderr.trim().is_empty() {
-        log_bot_stderr(player_id, &bot_path, &bot_result.stderr);
+    if !bot_result.stderr.trim().is_empty() {
+        let event = BotStderrEvent {
+            tick,
+            player_id,
+            bot_path: bot_path.display().to_string(),
+            stderr: bot_result.stderr.clone(),
+        };
+        let _ = state.inner().bot_stderr.send(event);
+
+        if state.inner().config.log_bot_stderr {
+            log_bot_stderr(player_id, &bot_path, &bot_result.stderr);
+        }
     }
 
     let entries = {
@@ -70,8 +81,7 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
                 player_id,
                 tick,
                 &bot_result.output_payload,
-                &state.inner().config.rules,
-                state.inner().config.debug_max_actions,
+                &state.inner().config,
                 &mut entries,
             )?;
         } else {
@@ -80,6 +90,7 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
                 player_id,
                 &bot_result.output_payload,
                 &state.inner().config.rules,
+                Some(&state.inner().config.rule_catalog),
                 state.inner().config.debug_max_actions,
             )?;
             for rejection in &validation.rejected {
@@ -116,8 +127,7 @@ fn apply_debug_output_sequentially(
     player_id: u64,
     tick: u64,
     output_payload: &[u8],
-    server_rules: &crate::rules::ServerRules,
-    debug_max_actions: Option<u32>,
+    config: &ServerConfig,
     entries: &mut Vec<ActionLogEntry>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let output = fb::root_as_game_output(output_payload)?;
@@ -127,7 +137,7 @@ fn apply_debug_output_sequentially(
     }
 
     let runtime_profile = world
-        .player_runtime_profile_with_rules(player_id, server_rules)
+        .player_runtime_profile_with_rules(player_id, &config.rules)
         .ok_or("player has no runtime profile")?;
     if let Some(memory) = output.persistent_memory() {
         if memory.len() > runtime_profile.max_persistent_memory_bytes as usize {
@@ -144,7 +154,9 @@ fn apply_debug_output_sequentially(
     let Some(actions) = output.actions() else {
         return Ok(());
     };
-    let max_actions = debug_max_actions.unwrap_or(runtime_profile.max_actions) as usize;
+    let max_actions = config
+        .debug_max_actions
+        .unwrap_or(runtime_profile.max_actions) as usize;
     if actions.len() > max_actions {
         eprintln!(
             "rejected action: action count {} exceeds max {}",
@@ -155,7 +167,13 @@ fn apply_debug_output_sequentially(
 
     for index in 0..actions.len().min(max_actions) {
         let action = actions.get(index);
-        match rules::validate_action(world, player_id, action, server_rules) {
+        match rules::validate_action(
+            world,
+            player_id,
+            action,
+            &config.rules,
+            Some(&config.rule_catalog),
+        ) {
             Ok(action) => {
                 let result = world.apply_action(player_id, &action);
                 entries.push(ActionLogEntry::new(tick, player_id, action, result));

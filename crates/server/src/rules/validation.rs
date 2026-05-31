@@ -1,6 +1,7 @@
 use rand_game_common::fb;
+use rand_game_common::rules::{RecipeSpec, RuleCatalog};
 
-use crate::model::{Position, ResourceKind, ResourceStack, ValidatedAction};
+use crate::model::{BuildingKind, ItemStack, Position, ResourceKind, ValidatedAction};
 use crate::protocol;
 use crate::world::WorldState;
 
@@ -18,6 +19,7 @@ pub fn validate_game_output(
     player_id: u64,
     output_payload: &[u8],
     rules: &ServerRules,
+    catalog: Option<&RuleCatalog>,
     debug_max_actions: Option<u32>,
 ) -> Result<ValidationReport, Box<dyn std::error::Error>> {
     let output = fb::root_as_game_output(output_payload)?;
@@ -58,7 +60,7 @@ pub fn validate_game_output(
 
     for index in 0..actions.len().min(max_actions as usize) {
         let action = actions.get(index);
-        match validate_action(world, player_id, action, rules) {
+        match validate_action(world, player_id, action, rules, catalog) {
             Ok(action) => report.actions.push(action),
             Err(reason) => report.rejected.push(format!("action {index}: {reason}")),
         }
@@ -72,6 +74,7 @@ pub fn validate_action(
     player_id: u64,
     action: fb::Action<'_>,
     rules: &ServerRules,
+    catalog: Option<&RuleCatalog>,
 ) -> Result<ValidatedAction, String> {
     let actor = world
         .entities
@@ -83,9 +86,12 @@ pub fn validate_action(
     match action.kind() {
         fb::ActionKind::Move => validate_move(world, actor.position, action),
         fb::ActionKind::Mine => validate_mine(world, actor.position, action, rules),
-        fb::ActionKind::Build => validate_build(world, player_id, actor.position, action, rules),
+        fb::ActionKind::Build => {
+            validate_build(world, player_id, actor.position, action, rules, catalog)
+        }
         fb::ActionKind::Lift => validate_lift(world, actor.position, action, rules),
         fb::ActionKind::Put => validate_put(actor.cargo.as_slice(), action),
+        fb::ActionKind::Craft => validate_craft(world, player_id, action, catalog),
         other => Err(format!("unsupported action kind {other:?}")),
     }
 }
@@ -139,6 +145,7 @@ fn validate_build(
     actor_position: Position,
     action: fb::Action<'_>,
     rules: &ServerRules,
+    catalog: Option<&RuleCatalog>,
 ) -> Result<ValidatedAction, String> {
     let target = required_target_position(action, "Build")?;
     if actor_position.manhattan(target) != 1 {
@@ -160,12 +167,49 @@ fn validate_build(
     if building_kind == crate::model::BuildingKind::None {
         return Err("building another core is not allowed in MVP".into());
     }
+    validate_building_catalog_rule(building_kind, catalog)?;
 
     Ok(ValidatedAction::Build {
         actor_entity_id: action.actor_entity_id(),
         target,
         building_kind,
     })
+}
+
+fn validate_building_catalog_rule(
+    building_kind: BuildingKind,
+    catalog: Option<&RuleCatalog>,
+) -> Result<(), String> {
+    let Some(catalog) = catalog else {
+        return Ok(());
+    };
+    let Some(spec_id) = default_building_spec_id(building_kind) else {
+        return Err(format!(
+            "building kind {building_kind:?} is not supported by YAML rules"
+        ));
+    };
+    let spec = catalog
+        .buildings
+        .buildings
+        .iter()
+        .find(|building| building.id == spec_id)
+        .ok_or_else(|| format!("YAML building spec `{spec_id}` is missing"))?;
+    if spec.width != 1 {
+        return Err(format!(
+            "YAML building spec `{spec_id}` has width {}, but multi-tile buildings are not supported yet",
+            spec.width
+        ));
+    }
+    Ok(())
+}
+
+fn default_building_spec_id(building_kind: BuildingKind) -> Option<&'static str> {
+    match building_kind {
+        BuildingKind::Miner => Some("min-1"),
+        BuildingKind::Storage => Some("box-1"),
+        BuildingKind::Assembler => Some("asm-1"),
+        BuildingKind::None | BuildingKind::Solar => None,
+    }
 }
 
 fn required_target_position(action: fb::Action<'_>, kind: &str) -> Result<Position, String> {
@@ -206,7 +250,7 @@ fn validate_lift(
 }
 
 fn validate_put(
-    actor_cargo: &[ResourceStack],
+    actor_cargo: &[ItemStack],
     action: fb::Action<'_>,
 ) -> Result<ValidatedAction, String> {
     let fb_resource = action
@@ -216,7 +260,7 @@ fn validate_put(
         to_model_resource_kind(fb_resource.kind()).ok_or("put action has invalid resource kind")?;
     let available = actor_cargo
         .iter()
-        .filter(|stack| stack.kind == kind)
+        .filter(|stack| stack.kind == kind.item_id())
         .map(|stack| stack.amount)
         .sum::<u32>();
     if available == 0 {
@@ -229,6 +273,126 @@ fn validate_put(
         kind,
         amount,
     })
+}
+
+fn validate_craft(
+    world: &WorldState,
+    player_id: u64,
+    action: fb::Action<'_>,
+    catalog: Option<&RuleCatalog>,
+) -> Result<ValidatedAction, String> {
+    let catalog = catalog.ok_or("craft action requires rule catalog")?;
+    let recipe_id = action
+        .recipe_id()
+        .filter(|recipe_id| !recipe_id.trim().is_empty())
+        .ok_or("craft action requires recipe_id")?;
+    let recipe = catalog
+        .recipes
+        .recipes
+        .iter()
+        .find(|recipe| recipe.id == recipe_id)
+        .ok_or_else(|| format!("unknown recipe `{recipe_id}`"))?;
+    let actor = world
+        .entities
+        .get(&action.actor_entity_id())
+        .ok_or("actor entity does not exist")?;
+    if actor.owner_id != player_id {
+        return Err("actor entity is not owned by player".into());
+    }
+    let target_building_id = validate_recipe_workplace(world, player_id, action, recipe)?;
+    validate_recipe_inputs(actor.cargo.as_slice(), recipe)?;
+    validate_recipe_outputs(actor.cargo.as_slice(), recipe)?;
+
+    Ok(ValidatedAction::Craft {
+        actor_entity_id: action.actor_entity_id(),
+        recipe_id: recipe.id.clone(),
+        target_building_id,
+        inputs: recipe
+            .inputs
+            .iter()
+            .map(|stack| ItemStack {
+                kind: stack.kind.clone(),
+                amount: stack.amount,
+            })
+            .collect(),
+        outputs: recipe
+            .outputs
+            .iter()
+            .map(|stack| ItemStack {
+                kind: stack.kind.clone(),
+                amount: stack.amount,
+            })
+            .collect(),
+    })
+}
+
+fn validate_recipe_workplace(
+    world: &WorldState,
+    player_id: u64,
+    action: fb::Action<'_>,
+    recipe: &RecipeSpec,
+) -> Result<Option<u64>, String> {
+    if recipe.building.iter().any(|building| building == "entity")
+        && action.target_building_id() == 0
+    {
+        return Ok(None);
+    }
+
+    let target_building_id = action.target_building_id();
+    if target_building_id == 0 {
+        return Err("craft action requires target_building_id for building recipe".into());
+    }
+    let building = world
+        .buildings
+        .get(&target_building_id)
+        .ok_or("craft target building does not exist")?;
+    if building.owner_id != player_id {
+        return Err("craft target building is not owned by player".into());
+    }
+    let spec_id = default_building_spec_id(building.kind)
+        .ok_or("craft target building kind is not supported by YAML rules")?;
+    if !recipe.building.iter().any(|building| building == spec_id) {
+        return Err(format!(
+            "recipe `{}` cannot be crafted by building `{spec_id}`",
+            recipe.id
+        ));
+    }
+
+    Ok(Some(target_building_id))
+}
+
+fn validate_recipe_inputs(actor_cargo: &[ItemStack], recipe: &RecipeSpec) -> Result<(), String> {
+    for input in &recipe.inputs {
+        let available = actor_cargo
+            .iter()
+            .filter(|stack| stack.kind == input.kind)
+            .map(|stack| stack.amount)
+            .sum::<u32>();
+        if available < input.amount {
+            return Err(format!(
+                "recipe `{}` requires {} {}, but actor cargo has {}",
+                recipe.id, input.amount, input.kind, available
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_recipe_outputs(actor_cargo: &[ItemStack], recipe: &RecipeSpec) -> Result<(), String> {
+    for output in &recipe.outputs {
+        let current = actor_cargo
+            .iter()
+            .filter(|stack| stack.kind == output.kind)
+            .map(|stack| stack.amount)
+            .sum::<u32>();
+        if current.saturating_add(output.amount) > recipe.max_stack {
+            return Err(format!(
+                "recipe `{}` output `{}` would exceed max_stack {}",
+                recipe.id, output.kind, recipe.max_stack
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn to_model_resource_kind(kind: fb::ResourceKind) -> Option<ResourceKind> {
@@ -246,6 +410,11 @@ fn to_model_resource_kind(kind: fb::ResourceKind) -> Option<ResourceKind> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::{Building, ItemStack};
+    use rand_game_common::rules::default_rule_catalog;
+    use rand_game_common::rules::{
+        BuildingCatalog, BuildingSpec, RecipeCatalog, RuleCatalog, validate_rule_catalog,
+    };
 
     #[test]
     fn debug_action_validation_ignores_actor_cooldown() {
@@ -268,8 +437,194 @@ mod tests {
         let action = flatbuffers::root::<fb::Action<'_>>(fbb.finished_data()).expect("action");
 
         assert_eq!(
-            validate_action(&world, 1, action, &ServerRules::default()),
+            validate_action(&world, 1, action, &ServerRules::default(), None),
             Err("lift action requires resource field".into())
         );
+    }
+
+    #[test]
+    fn build_validation_uses_yaml_catalog_when_enabled() {
+        let world = WorldState::new();
+        let player = world.players.get(&1).expect("player 1");
+        let action = build_action(player.worker_entity_id, fb::BuildingKind::Miner);
+        let catalog = catalog_with_building("min-1", 1);
+
+        let validated = validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog))
+            .expect("valid build");
+
+        assert!(matches!(validated, ValidatedAction::Build { .. }));
+    }
+
+    #[test]
+    fn build_validation_rejects_missing_yaml_building() {
+        let world = WorldState::new();
+        let player = world.players.get(&1).expect("player 1");
+        let action = build_action(player.worker_entity_id, fb::BuildingKind::Miner);
+        let catalog = catalog_with_building("asm-1", 1);
+
+        assert_eq!(
+            validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog)),
+            Err("YAML building spec `min-1` is missing".into())
+        );
+    }
+
+    #[test]
+    fn build_validation_rejects_multi_tile_yaml_building() {
+        let world = WorldState::new();
+        let player = world.players.get(&1).expect("player 1");
+        let action = build_action(player.worker_entity_id, fb::BuildingKind::Miner);
+        let catalog = catalog_with_building("min-1", 2);
+
+        assert_eq!(
+            validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog)),
+            Err("YAML building spec `min-1` has width 2, but multi-tile buildings are not supported yet".into())
+        );
+    }
+
+    #[test]
+    fn craft_validation_accepts_all_generated_recipes_with_inputs() {
+        let mut world = WorldState::new();
+        let catalog = default_rule_catalog();
+        let player = world.players.get(&1).expect("player 1");
+        let actor_id = player.worker_entity_id;
+        world.buildings.insert(
+            99,
+            Building {
+                id: 99,
+                kind: BuildingKind::Assembler,
+                owner_id: 1,
+                position: Position::new(2, 0),
+                power: 0,
+            },
+        );
+
+        for recipe in &catalog.recipes.recipes {
+            let actor = world.entities.get_mut(&actor_id).expect("actor");
+            actor.cargo = recipe
+                .inputs
+                .iter()
+                .map(|stack| ItemStack {
+                    kind: stack.kind.clone(),
+                    amount: stack.amount,
+                })
+                .collect();
+            let target_building_id = if recipe.building.iter().any(|building| building == "entity")
+            {
+                0
+            } else {
+                99
+            };
+            let action = craft_action(actor_id, &recipe.id, target_building_id);
+
+            let validated =
+                validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog))
+                    .expect("valid craft");
+
+            assert!(matches!(validated, ValidatedAction::Craft { .. }));
+        }
+    }
+
+    #[test]
+    fn craft_validation_rejects_unknown_recipe() {
+        let world = WorldState::new();
+        let player = world.players.get(&1).expect("player 1");
+        let action = craft_action(player.worker_entity_id, "missing", 0);
+        let catalog = default_rule_catalog();
+
+        assert_eq!(
+            validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog)),
+            Err("unknown recipe `missing`".into())
+        );
+    }
+
+    #[test]
+    fn craft_validation_rejects_missing_inputs() {
+        let world = WorldState::new();
+        let player = world.players.get(&1).expect("player 1");
+        let action = craft_action(player.worker_entity_id, "iron-plate", 0);
+        let catalog = default_rule_catalog();
+
+        assert_eq!(
+            validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog)),
+            Err("recipe `iron-plate` requires 1 iron-ore, but actor cargo has 0".into())
+        );
+    }
+
+    fn build_action(actor_entity_id: u64, building_kind: fb::BuildingKind) -> fb::Action<'static> {
+        let mut fbb = flatbuffers::FlatBufferBuilder::new();
+        let target = fb::Vec2I::new(2, 0);
+        let action = fb::Action::create(
+            &mut fbb,
+            &fb::ActionArgs {
+                kind: fb::ActionKind::Build,
+                actor_entity_id,
+                target_position: Some(&target),
+                building_kind,
+                ..Default::default()
+            },
+        );
+        fbb.finish_minimal(action);
+        let data = fbb.finished_data().to_vec().leak();
+        flatbuffers::root::<fb::Action<'static>>(data).expect("action")
+    }
+
+    fn craft_action(
+        actor_entity_id: u64,
+        recipe_id: &str,
+        target_building_id: u64,
+    ) -> fb::Action<'static> {
+        let mut fbb = flatbuffers::FlatBufferBuilder::new();
+        let recipe_id = fbb.create_string(recipe_id);
+        let action = fb::Action::create(
+            &mut fbb,
+            &fb::ActionArgs {
+                kind: fb::ActionKind::Craft,
+                actor_entity_id,
+                target_building_id,
+                recipe_id: Some(recipe_id),
+                ..Default::default()
+            },
+        );
+        fbb.finish_minimal(action);
+        let data = fbb.finished_data().to_vec().leak();
+        flatbuffers::root::<fb::Action<'static>>(data).expect("action")
+    }
+
+    fn catalog_with_building(id: &str, width: u32) -> RuleCatalog {
+        let catalog = RuleCatalog {
+            buildings: BuildingCatalog {
+                buildings: vec![
+                    BuildingSpec {
+                        name: "Entity".into(),
+                        id: "entity".into(),
+                        crafting_time: Some(1),
+                        mining_time: Some(1),
+                        smelting_time: None,
+                        electricity: Some(0),
+                        energy: None,
+                        module_slot: Some(0),
+                        width: 1,
+                        capacity: None,
+                    },
+                    BuildingSpec {
+                        name: id.into(),
+                        id: id.into(),
+                        crafting_time: Some(1),
+                        mining_time: Some(1),
+                        smelting_time: None,
+                        electricity: Some(0),
+                        energy: None,
+                        module_slot: Some(0),
+                        width,
+                        capacity: None,
+                    },
+                ],
+            },
+            recipes: RecipeCatalog {
+                recipes: Vec::new(),
+            },
+        };
+        validate_rule_catalog(&catalog).expect("valid catalog");
+        catalog
     }
 }

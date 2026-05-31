@@ -861,6 +861,119 @@ impl<'a> ResourceStack {
 
 }
 
+pub enum ItemStackOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct ItemStack<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for ItemStack<'a> {
+  type Inner = ItemStack<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> ItemStack<'a> {
+  pub const VT_KIND: ::flatbuffers::VOffsetT = 4;
+  pub const VT_AMOUNT: ::flatbuffers::VOffsetT = 6;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    ItemStack { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args ItemStackArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<ItemStack<'bldr>> {
+    let mut builder = ItemStackBuilder::new(_fbb);
+    builder.add_amount(args.amount);
+    if let Some(x) = args.kind { builder.add_kind(x); }
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn kind(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(ItemStack::VT_KIND, None)}
+  }
+  #[inline]
+  pub fn amount(&self) -> u32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u32>(ItemStack::VT_AMOUNT, Some(0)).unwrap()}
+  }
+}
+
+impl ::flatbuffers::Verifiable for ItemStack<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("kind", Self::VT_KIND, false)?
+     .visit_field::<u32>("amount", Self::VT_AMOUNT, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct ItemStackArgs<'a> {
+    pub kind: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub amount: u32,
+}
+impl<'a> Default for ItemStackArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    ItemStackArgs {
+      kind: None,
+      amount: 0,
+    }
+  }
+}
+
+pub struct ItemStackBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> ItemStackBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_kind(&mut self, kind: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(ItemStack::VT_KIND, kind);
+  }
+  #[inline]
+  pub fn add_amount(&mut self, amount: u32) {
+    self.fbb_.push_slot::<u32>(ItemStack::VT_AMOUNT, amount, 0);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> ItemStackBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    ItemStackBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<ItemStack<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for ItemStack<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("ItemStack");
+      ds.field("kind", &self.kind());
+      ds.field("amount", &self.amount());
+      ds.finish()
+  }
+}
 pub enum BuildingOffset {}
 #[derive(Copy, Clone, PartialEq)]
 
@@ -1207,11 +1320,11 @@ impl<'a> Entity<'a> {
     unsafe { self._tab.get::<Vec2I>(Entity::VT_POSITION, None)}
   }
   #[inline]
-  pub fn cargo(&self) -> Option<::flatbuffers::Vector<'a, ResourceStack>> {
+  pub fn cargo(&self) -> Option<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<ItemStack<'a>>>> {
     // Safety:
     // Created from valid Table for this object
     // which contains a valid value in this slot
-    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ResourceStack>>>(Entity::VT_CARGO, None)}
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<ItemStack>>>>(Entity::VT_CARGO, None)}
   }
 }
 
@@ -1223,7 +1336,7 @@ impl ::flatbuffers::Verifiable for Entity<'_> {
     v.visit_table(pos)?
      .visit_field::<u64>("id", Self::VT_ID, false)?
      .visit_field::<Vec2I>("position", Self::VT_POSITION, false)?
-     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ResourceStack>>>("cargo", Self::VT_CARGO, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<ItemStack>>>>("cargo", Self::VT_CARGO, false)?
      .finish();
     Ok(())
   }
@@ -1231,7 +1344,7 @@ impl ::flatbuffers::Verifiable for Entity<'_> {
 pub struct EntityArgs<'a> {
     pub id: u64,
     pub position: Option<&'a Vec2I>,
-    pub cargo: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ResourceStack>>>,
+    pub cargo: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<ItemStack<'a>>>>>,
 }
 impl<'a> Default for EntityArgs<'a> {
   #[inline]
@@ -1258,7 +1371,7 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> EntityBuilder<'a, 'b, A> {
     self.fbb_.push_slot_always::<&Vec2I>(Entity::VT_POSITION, position);
   }
   #[inline]
-  pub fn add_cargo(&mut self, cargo: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ResourceStack>>) {
+  pub fn add_cargo(&mut self, cargo: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ::flatbuffers::ForwardsUOffset<ItemStack<'b >>>>) {
     self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Entity::VT_CARGO, cargo);
   }
   #[inline]

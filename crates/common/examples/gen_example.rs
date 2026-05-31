@@ -91,7 +91,14 @@ fn build_game_input() -> Vec<u8> {
     let visible_tiles = fbb.create_vector(&[tile_origin, tile_rock]);
 
     let worker_pos = Vec2I::new(0, 1);
-    let worker_cargo_items = [ResourceStack::new(ResourceKind::Iron, 12)];
+    let iron_ore = fbb.create_string("iron-ore");
+    let worker_cargo_items = [ItemStack::create(
+        &mut fbb,
+        &ItemStackArgs {
+            kind: Some(iron_ore),
+            amount: 12,
+        },
+    )];
     let worker_cargo = fbb.create_vector(&worker_cargo_items);
     let worker = Entity::create(
         &mut fbb,
