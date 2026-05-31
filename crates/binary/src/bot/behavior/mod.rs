@@ -1,5 +1,7 @@
-mod mine;
-mod navigate;
+pub(crate) mod mine;
+pub(crate) mod navigate;
+
+pub(crate) mod craft;
 
 use std::collections::HashSet;
 

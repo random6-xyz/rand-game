@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use rand_game_common::fb::*;
 
@@ -94,4 +94,42 @@ fn to_position(position: &Vec2I) -> Position {
         x: position.x(),
         y: position.y(),
     }
+}
+
+pub(crate) fn worker_cargo_map(observation: Observation<'_>) -> HashMap<String, u32> {
+    let mut cargo = HashMap::new();
+    let Some(entities) = observation.owned_entities() else {
+        return cargo;
+    };
+    for index in 0..entities.len() {
+        let entity = entities.get(index);
+        if let Some(items) = entity.cargo() {
+            for i in 0..items.len() {
+                let stack = items.get(i);
+                if let Some(kind) = stack.kind() {
+                    *cargo.entry(kind.to_string()).or_default() += stack.amount();
+                }
+            }
+        }
+    }
+    cargo
+}
+
+pub(crate) fn worker_entity(observation: Observation<'_>) -> Option<(u64, Position)> {
+    let entities = observation.owned_entities()?;
+    let mut best_id: u64 = 0;
+    let mut best_position: Option<Position> = None;
+    for index in 0..entities.len() {
+        let entity = entities.get(index);
+        let id = entity.id();
+        if id < best_id {
+            continue;
+        }
+        let Some(pos) = entity.position() else {
+            continue;
+        };
+        best_id = id;
+        best_position = Some(to_position(pos));
+    }
+    best_position.map(|pos| (best_id, pos))
 }

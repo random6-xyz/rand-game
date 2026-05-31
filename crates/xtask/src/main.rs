@@ -15,6 +15,7 @@ const DEFAULT_MAP_VIEW_Y: &str = "0";
 const DEFAULT_MAP_VIEW_RADIUS: &str = "8";
 const E2E_SERVER_ADDR: &str = "127.0.0.1:3100";
 const E2E_RULES_PATH: &str = "target/e2e/server.rules.toml";
+const E2E_RECIPES_RULES_PATH: &str = "target/e2e/server-recipes.rules.toml";
 
 fn main() {
     if let Err(err) = run() {
@@ -41,6 +42,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         "map-view" => map_view(args.collect())?,
         "user-debug" => user_debug()?,
         "e2e-debug" => e2e_debug()?,
+        "e2e-debug-recipes" => e2e_debug_recipes()?,
         "clean-state" => clean_state()?,
         other => {
             return Err(format!("unknown command `{other}`. Try `cargo xtask help`. ").into());
@@ -70,6 +72,7 @@ Commands:
                               Print an ASCII map from the running server
   user-debug                  Upload default bot and run client map-view
   e2e-debug                   Run server, upload bot, and verify world changes
+  e2e-debug-recipes           Run server with verify-recipes bot and verify all recipes
   clean-state                 Delete var/server and var/bots
 "#
     );
@@ -248,6 +251,114 @@ fn user_debug() -> Result<(), Box<dyn std::error::Error>> {
         "--y",
         "0",
     ])
+}
+
+fn e2e_debug_recipes() -> Result<(), Box<dyn std::error::Error>> {
+    clean_state()?;
+    build_bot()?;
+    write_e2e_recipes_rules()?;
+
+    let mut server = spawn_e2e_recipes_server()?;
+    wait_for_server(E2E_SERVER_ADDR, &mut server)?;
+
+    upload_bot(vec!["--addr".into(), E2E_SERVER_ADDR.into()])?;
+    let initial_health = get_body(E2E_SERVER_ADDR, "/health")?;
+
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let mut last_health = initial_health.clone();
+    let mut last_entities = String::new();
+    let mut last_action_log = String::new();
+
+    while Instant::now() < deadline {
+        server.ensure_running()?;
+        thread::sleep(Duration::from_millis(100));
+
+        last_health = get_body(E2E_SERVER_ADDR, "/health")?;
+        last_entities = get_body(E2E_SERVER_ADDR, "/entities")?;
+        last_action_log = get_body(E2E_SERVER_ADDR, "/action-log")?;
+
+        let crafted_recipes = count_distinct_crafted_recipes(&last_action_log);
+        if crafted_recipes >= 7 {
+            println!("e2e-debug-recipes passed");
+            println!("verified recipes: {crafted_recipes}/7");
+            println!("health: {last_health}");
+            return Ok(());
+        }
+    }
+
+    Err(format!(
+        "e2e-debug-recipes timed out (30s)\ninitial health: {initial_health}\nlast health: {last_health}\nlast entities: {last_entities}\nlast action-log: {last_action_log}"
+    )
+    .into())
+}
+
+fn write_e2e_recipes_rules() -> Result<(), Box<dyn std::error::Error>> {
+    let path = Path::new(E2E_RECIPES_RULES_PATH);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(
+        path,
+        r#"tick_interval_ms = 50
+observation_radius = 64
+
+[basic_core]
+run_interval_ticks = 1
+cpu_time_ms = 50
+wall_time_ms = 250
+memory_bytes = 67108864
+stdout_bytes = 65536
+stderr_bytes = 65536
+max_actions = 2000
+max_persistent_memory_bytes = 4096
+"#,
+    )?;
+    Ok(())
+}
+
+fn spawn_e2e_recipes_server() -> Result<ServerProcess, Box<dyn std::error::Error>> {
+    let cargo = cargo_bin();
+    println!(
+        "$ {cargo} run -p rand-game-server -- --addr {E2E_SERVER_ADDR} --rules-path {E2E_RECIPES_RULES_PATH} --debug-max-actions 2000 --log-bot-stderr"
+    );
+    let child = Command::new(cargo)
+        .args([
+            "run",
+            "-p",
+            "rand-game-server",
+            "--",
+            "--addr",
+            E2E_SERVER_ADDR,
+            "--rules-path",
+            E2E_RECIPES_RULES_PATH,
+            "--debug-max-actions",
+            "2000",
+            "--log-bot-stderr",
+        ])
+        .env("RAND_GAME_VERIFY_RECIPES", "1")
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()?;
+    Ok(ServerProcess { child })
+}
+
+fn count_distinct_crafted_recipes(action_log: &str) -> usize {
+    let mut recipes = std::collections::HashSet::new();
+    let all_ids = [
+        "iron-plate",
+        "copper-plate",
+        "iron-gear",
+        "iron-rod",
+        "copper-wire",
+        "basic-circuit",
+        "conveyor-belt",
+    ];
+    for id in &all_ids {
+        if action_log.contains(&format!("\"recipe_id\":\"{id}\"")) {
+            recipes.insert(id);
+        }
+    }
+    recipes.len()
 }
 
 fn e2e_debug() -> Result<(), Box<dyn std::error::Error>> {

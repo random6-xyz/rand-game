@@ -4,6 +4,7 @@ mod observation;
 mod output;
 mod pathfinding;
 mod planner;
+mod verify;
 
 #[cfg(test)]
 mod rules_tests;
@@ -14,7 +15,9 @@ use rand_game_common::fb::*;
 use rand_game_common::framing::{FrameKind, read_frame, write_frame};
 
 use observation::{ready_actors, visible_passable_positions, visible_resource_tiles};
-use output::{build_output_with_actions, build_output_without_actions};
+use output::{
+    build_output_with_actions, build_output_with_actions_and_memory, build_output_without_actions,
+};
 use planner::{plan_debug_simulation_actions, plan_single_tick_actions};
 
 const DEBUG_SIMULATION_MIN_ACTIONS: usize = 100;
@@ -40,6 +43,12 @@ pub fn run_sample_bot() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn is_verify_mode() -> bool {
+    std::env::var("RAND_GAME_VERIFY_RECIPES")
+        .map(|v| v == "1")
+        .unwrap_or(false)
+}
+
 fn build_game_output(input: GameInput<'_>) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let observation = match input.observation() {
         Some(observation) => observation,
@@ -53,6 +62,26 @@ fn build_game_output(input: GameInput<'_>) -> Result<Vec<u8>, Box<dyn std::error
         .unwrap_or(1);
     if max_actions == 0 {
         return empty_output("max_actions is zero");
+    }
+
+    let persistent_memory = input
+        .persistent_memory()
+        .map(|pm| {
+            let mut bytes = Vec::with_capacity(pm.len());
+            for i in 0..pm.len() {
+                bytes.push(pm.get(i));
+            }
+            bytes
+        })
+        .unwrap_or_default();
+
+    if is_verify_mode() {
+        let (actions, new_memory) =
+            verify::plan_verify_actions(observation, &persistent_memory, max_actions);
+        if actions.is_empty() {
+            eprintln!("sample_bot: verify: no action this tick; preserving verify state");
+        }
+        return Ok(build_output_with_actions_and_memory(actions, &new_memory));
     }
 
     let actors = ready_actors(observation);

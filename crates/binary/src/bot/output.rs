@@ -4,6 +4,13 @@ use rand_game_common::fb::*;
 use super::model::{ActionPlan, PlannedAction};
 
 pub(crate) fn build_output_with_actions(planned_actions: Vec<PlannedAction>) -> Vec<u8> {
+    build_output_with_actions_and_memory(planned_actions, &[])
+}
+
+pub(crate) fn build_output_with_actions_and_memory(
+    planned_actions: Vec<PlannedAction>,
+    persistent_memory: &[u8],
+) -> Vec<u8> {
     let mut fbb = FlatBufferBuilder::new();
     let mut action_offsets = Vec::with_capacity(planned_actions.len());
 
@@ -102,21 +109,22 @@ pub(crate) fn build_output_with_actions(planned_actions: Vec<PlannedAction>) -> 
         action_offsets.push(action);
     }
 
-    finish_output(&mut fbb, &action_offsets)
+    finish_output(&mut fbb, &action_offsets, persistent_memory)
 }
 
 pub(crate) fn build_output_without_actions() -> Vec<u8> {
     let mut fbb = FlatBufferBuilder::new();
     let action_offsets: [flatbuffers::WIPOffset<Action<'_>>; 0] = [];
-    finish_output(&mut fbb, &action_offsets)
+    finish_output(&mut fbb, &action_offsets, &[])
 }
 
 fn finish_output<'fbb>(
     fbb: &mut FlatBufferBuilder<'fbb>,
     action_offsets: &[flatbuffers::WIPOffset<Action<'fbb>>],
+    persistent_memory: &[u8],
 ) -> Vec<u8> {
     let actions = fbb.create_vector(action_offsets);
-    let persistent_memory = fbb.create_vector::<u8>(&[]);
+    let persistent_memory = fbb.create_vector(persistent_memory);
     let output = GameOutput::create(
         fbb,
         &GameOutputArgs {
