@@ -135,6 +135,7 @@ Supported actions:
 - `Build`: build near an owned core on an adjacent empty tile
 - `Lift`: move resources from the current tile into entity cargo
 - `Put`: move resources from entity cargo onto the current tile
+- `Craft`: craft a generated recipe by `recipe_id` from entity cargo, optionally using a compatible owned building
 
 ## World And Rules
 
@@ -150,7 +151,7 @@ Configuration files:
 
 - `config/server.env.toml`: `world_seed`, `map_id`
 - `config/server.rules.toml`: tick interval, observation radius, API query radius, upload limit, and per-core-tier runtime profiles
-- `config/building.yaml`, `config/recipe.yaml`: source YAML catalogs compiled into `rand-game-common` at build time. The server and sample bot use the same generated Rust catalog.
+- `config/building.yaml`, `config/recipe.yaml`: source YAML catalogs compiled into `rand-game-common` at build time. The server and sample bot use the same generated Rust catalog; recipe ids are validated by the server for `Craft` actions.
 
 ## Crate Structure
 

@@ -35,6 +35,7 @@ recipes:
     id: "iron-gear"
     max_stack: 1000
     building:
+      - "entity"
       - "asm-1"
       - "asm-2"
       - "asm-3"
@@ -50,6 +51,7 @@ recipes:
     id: "iron-rod"
     max_stack: 1000
     building:
+      - "entity"
       - "asm-1"
       - "asm-2"
       - "asm-3"
@@ -65,6 +67,7 @@ recipes:
     id: "copper-wire"
     max_stack: 1000
     building:
+      - "entity"
       - "asm-1"
       - "asm-2"
       - "asm-3"
@@ -80,6 +83,7 @@ recipes:
     id: "basic-circuit"
     max_stack: 1000
     building:
+      - "entity"
       - "asm-1"
       - "asm-2"
       - "asm-3"
@@ -97,6 +101,7 @@ recipes:
     id: "conveyor-belt"
     max_stack: 1000
     building:
+      - "entity"
       - "asm-1"
       - "asm-2"
       - "asm-3"

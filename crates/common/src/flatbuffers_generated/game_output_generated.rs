@@ -13,15 +13,16 @@ extern crate alloc;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 pub const ENUM_MIN_ACTION_KIND: i8 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_ACTION_KIND: i8 = 4;
+pub const ENUM_MAX_ACTION_KIND: i8 = 5;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 #[allow(non_camel_case_types)]
-pub const ENUM_VALUES_ACTION_KIND: [ActionKind; 5] = [
+pub const ENUM_VALUES_ACTION_KIND: [ActionKind; 6] = [
   ActionKind::Move,
   ActionKind::Mine,
   ActionKind::Build,
   ActionKind::Lift,
   ActionKind::Put,
+  ActionKind::Craft,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -34,15 +35,17 @@ impl ActionKind {
   pub const Build: Self = Self(2);
   pub const Lift: Self = Self(3);
   pub const Put: Self = Self(4);
+  pub const Craft: Self = Self(5);
 
   pub const ENUM_MIN: i8 = 0;
-  pub const ENUM_MAX: i8 = 4;
+  pub const ENUM_MAX: i8 = 5;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::Move,
     Self::Mine,
     Self::Build,
     Self::Lift,
     Self::Put,
+    Self::Craft,
   ];
   /// Returns the variant's name or "" if unknown.
   pub fn variant_name(self) -> Option<&'static str> {
@@ -52,6 +55,7 @@ impl ActionKind {
       Self::Build => Some("Build"),
       Self::Lift => Some("Lift"),
       Self::Put => Some("Put"),
+      Self::Craft => Some("Craft"),
       _ => None,
     }
   }
@@ -130,6 +134,7 @@ impl<'a> Action<'a> {
   pub const VT_RESOURCE: ::flatbuffers::VOffsetT = 14;
   pub const VT_BUILDING_KIND: ::flatbuffers::VOffsetT = 16;
   pub const VT_AMOUNT: ::flatbuffers::VOffsetT = 18;
+  pub const VT_RECIPE_ID: ::flatbuffers::VOffsetT = 20;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -144,6 +149,7 @@ impl<'a> Action<'a> {
     builder.add_target_building_id(args.target_building_id);
     builder.add_target_entity_id(args.target_entity_id);
     builder.add_actor_entity_id(args.actor_entity_id);
+    if let Some(x) = args.recipe_id { builder.add_recipe_id(x); }
     builder.add_amount(args.amount);
     if let Some(x) = args.resource { builder.add_resource(x); }
     if let Some(x) = args.target_position { builder.add_target_position(x); }
@@ -209,6 +215,13 @@ impl<'a> Action<'a> {
     // which contains a valid value in this slot
     unsafe { self._tab.get::<u32>(Action::VT_AMOUNT, Some(0)).unwrap()}
   }
+  #[inline]
+  pub fn recipe_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(Action::VT_RECIPE_ID, None)}
+  }
 }
 
 impl ::flatbuffers::Verifiable for Action<'_> {
@@ -225,6 +238,7 @@ impl ::flatbuffers::Verifiable for Action<'_> {
      .visit_field::<ResourceStack>("resource", Self::VT_RESOURCE, false)?
      .visit_field::<BuildingKind>("building_kind", Self::VT_BUILDING_KIND, false)?
      .visit_field::<u32>("amount", Self::VT_AMOUNT, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("recipe_id", Self::VT_RECIPE_ID, false)?
      .finish();
     Ok(())
   }
@@ -238,6 +252,7 @@ pub struct ActionArgs<'a> {
     pub resource: Option<&'a ResourceStack>,
     pub building_kind: BuildingKind,
     pub amount: u32,
+    pub recipe_id: Option<::flatbuffers::WIPOffset<&'a str>>,
 }
 impl<'a> Default for ActionArgs<'a> {
   #[inline]
@@ -251,6 +266,7 @@ impl<'a> Default for ActionArgs<'a> {
       resource: None,
       building_kind: BuildingKind::None,
       amount: 0,
+      recipe_id: None,
     }
   }
 }
@@ -293,6 +309,10 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> ActionBuilder<'a, 'b, A> {
     self.fbb_.push_slot::<u32>(Action::VT_AMOUNT, amount, 0);
   }
   #[inline]
+  pub fn add_recipe_id(&mut self, recipe_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Action::VT_RECIPE_ID, recipe_id);
+  }
+  #[inline]
   pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> ActionBuilder<'a, 'b, A> {
     let start = _fbb.start_table();
     ActionBuilder {
@@ -318,6 +338,7 @@ impl ::core::fmt::Debug for Action<'_> {
       ds.field("resource", &self.resource());
       ds.field("building_kind", &self.building_kind());
       ds.field("amount", &self.amount());
+      ds.field("recipe_id", &self.recipe_id());
       ds.finish()
   }
 }

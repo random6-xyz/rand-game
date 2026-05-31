@@ -53,6 +53,11 @@ struct ResourceStack {
   amount:uint;
 }
 
+table ItemStack {
+  kind:string;
+  amount:uint;
+}
+
 table Building {
   id:ulong;
   kind:BuildingKind;
@@ -70,7 +75,7 @@ table Tile {
 table Entity {
   id:ulong;
   position:Vec2I;
-  cargo:[ResourceStack];
+  cargo:[ItemStack];
 }
 
 table ComputeBudget {

@@ -77,8 +77,15 @@ pub fn build_game_input_payload(
         let cargo_items = entity
             .cargo
             .iter()
-            .map(|resource| {
-                fb::ResourceStack::new(to_fb_resource_kind(resource.kind), resource.amount)
+            .map(|item| {
+                let kind = fbb.create_string(&item.kind);
+                fb::ItemStack::create(
+                    &mut fbb,
+                    &fb::ItemStackArgs {
+                        kind: Some(kind),
+                        amount: item.amount,
+                    },
+                )
             })
             .collect::<Vec<_>>();
         let cargo = fbb.create_vector(&cargo_items);

@@ -86,8 +86,9 @@ fn generate_rules(buildings: &BuildingCatalog, recipes: &RecipeCatalog) -> Strin
     output.push_str(
         "// Do not edit by hand. Edit config/building.yaml or config/recipe.yaml instead.\n\n",
     );
+    output.push_str("use crate::rules::validate_rule_catalog;\n");
     output.push_str(
-        "use crate::rules::{BuildingCatalog, BuildingSpec, ItemStackSpec, RecipeCatalog, RecipeSpec, RuleCatalog, validate_rule_catalog};\n\n",
+        "use crate::rules::{BuildingCatalog, BuildingSpec, ItemStackSpec, RecipeCatalog, RecipeSpec, RuleCatalog};\n\n",
     );
     output.push_str("pub fn default_rule_catalog() -> RuleCatalog {\n");
     output.push_str("    let catalog = RuleCatalog {\n");

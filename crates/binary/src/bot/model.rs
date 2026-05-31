@@ -55,6 +55,11 @@ pub(crate) enum ActionPlan {
         resource: ResourceKind,
         amount: u32,
     },
+    #[allow(dead_code)]
+    Craft {
+        recipe_id: String,
+        target_building_id: u64,
+    },
 }
 
 pub(crate) struct PlannedAction {

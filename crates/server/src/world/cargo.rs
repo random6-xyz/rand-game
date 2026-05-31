@@ -1,18 +1,18 @@
-use crate::model::{Entity, ResourceKind, ResourceStack};
+use crate::model::{Entity, ItemStack};
 
-pub fn add_cargo(entity: &mut Entity, resource: ResourceStack) {
+pub fn add_cargo(entity: &mut Entity, item: ItemStack) {
     if let Some(existing) = entity
         .cargo
         .iter_mut()
-        .find(|existing| existing.kind == resource.kind)
+        .find(|existing| existing.kind == item.kind)
     {
-        existing.amount += resource.amount;
+        existing.amount += item.amount;
     } else {
-        entity.cargo.push(resource);
+        entity.cargo.push(item);
     }
 }
 
-pub fn remove_cargo(entity: &mut Entity, kind: ResourceKind, amount: u32) -> u32 {
+pub fn remove_cargo(entity: &mut Entity, kind: &str, amount: u32) -> u32 {
     let available = entity
         .cargo
         .iter()

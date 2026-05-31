@@ -82,6 +82,22 @@ pub(crate) fn build_output_with_actions(planned_actions: Vec<PlannedAction>) -> 
                     },
                 )
             }
+            ActionPlan::Craft {
+                recipe_id,
+                target_building_id,
+            } => {
+                let recipe_id = fbb.create_string(&recipe_id);
+                Action::create(
+                    &mut fbb,
+                    &ActionArgs {
+                        kind: ActionKind::Craft,
+                        actor_entity_id: planned_action.actor_id,
+                        target_building_id,
+                        recipe_id: Some(recipe_id),
+                        ..Default::default()
+                    },
+                )
+            }
         };
         action_offsets.push(action);
     }

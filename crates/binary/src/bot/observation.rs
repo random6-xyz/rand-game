@@ -20,12 +20,12 @@ pub(crate) fn ready_actors(observation: Observation<'_>) -> Vec<Actor> {
             for i in 0..items.len() {
                 let stack = items.get(i);
                 match stack.kind() {
-                    ResourceKind::Iron => cargo.iron += stack.amount(),
-                    ResourceKind::Copper => cargo.copper += stack.amount(),
-                    ResourceKind::Energy => cargo.energy += stack.amount(),
-                    ResourceKind::Stone => cargo.stone += stack.amount(),
-                    ResourceKind::Tree => cargo.tree += stack.amount(),
-                    ResourceKind::Water => cargo.water += stack.amount(),
+                    Some("iron-ore") => cargo.iron += stack.amount(),
+                    Some("copper-ore") => cargo.copper += stack.amount(),
+                    Some("energy") => cargo.energy += stack.amount(),
+                    Some("stone") => cargo.stone += stack.amount(),
+                    Some("tree") => cargo.tree += stack.amount(),
+                    Some("water") => cargo.water += stack.amount(),
                     _ => {}
                 }
             }

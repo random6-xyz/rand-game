@@ -41,9 +41,28 @@ pub enum ResourceKind {
     Water,
 }
 
+impl ResourceKind {
+    pub const fn item_id(self) -> &'static str {
+        match self {
+            Self::Iron => "iron-ore",
+            Self::Copper => "copper-ore",
+            Self::Energy => "energy",
+            Self::Stone => "stone",
+            Self::Tree => "tree",
+            Self::Water => "water",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResourceStack {
     pub kind: ResourceKind,
+    pub amount: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ItemStack {
+    pub kind: String,
     pub amount: u32,
 }
 
@@ -83,6 +102,13 @@ pub enum ValidatedAction {
         kind: ResourceKind,
         amount: u32,
     },
+    Craft {
+        actor_entity_id: u64,
+        recipe_id: String,
+        target_building_id: Option<u64>,
+        inputs: Vec<ItemStack>,
+        outputs: Vec<ItemStack>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -99,7 +125,7 @@ pub struct Entity {
     pub id: u64,
     pub owner_id: u64,
     pub position: Position,
-    pub cargo: Vec<ResourceStack>,
+    pub cargo: Vec<ItemStack>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
