@@ -1,0 +1,81 @@
+buildings:
+  - name: "Entity"
+    id: "entity"
+    crafting_time: 5
+    mining_time: 5
+    electricity: 0
+    module_slot: 0
+    width: 1
+
+  - name: "Assembly Machine 1"
+    id: "asm-1"
+    crafting_time: 10
+    electricity: 5
+    module_slot: 2
+    width: 1
+
+  - name: "Assembly Machine 2"
+    id: "asm-2"
+    crafting_time: 7
+    electricity: 7
+    module_slot: 4
+    width: 2
+
+  - name: "Assembly Machine 3"
+    id: "asm-3"
+    crafting_time: 4
+    electricity: 9
+    module_slot: 6
+    width: 3
+
+  - name: "Miner 1"
+    id: "min-1"
+    mining_time: 5
+    energy: 5
+    module_slot: 2
+    width: 1
+
+  - name: "Miner 2"
+    id: "min-2"
+    mining_time: 4
+    electricity: 7
+    module_slot: 4
+    width: 2
+
+  - name: "Miner 3"
+    id: "min-3"
+    mining_time: 3
+    electricity: 9
+    module_slot: 6
+    width: 3
+
+  - name: "Furnace 1"
+    id: "fur-1"
+    smelting_time: 5
+    energy: 5
+    module_slot: 2
+    width: 1
+
+  - name: "Furnace 2"
+    id: "fur-2"
+    smelting_time: 4
+    electricity: 7
+    module_slot: 4
+    width: 2
+
+  - name: "Furnace 3"
+    id: "fur-3"
+    smelting_time: 3
+    electricity: 9
+    module_slot: 6
+    width: 3
+
+  - name: "Box 1"
+    id: "box-1"
+    capacity: 100
+    width: 1
+
+  - name: "Box 2"
+    id: "box-2"
+    capacity: 500
+    width: 2

@@ -27,13 +27,14 @@ pub struct BotStderrEvent {
     pub stderr: String,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ServerConfig {
     pub addr: String,
     pub debug_max_actions: Option<u32>,
     pub log_bot_stderr: bool,
     pub env: ServerEnv,
     pub rules: ServerRules,
+    pub rule_catalog: rand_game_common::rules::RuleCatalog,
 }
 
 impl SharedState {

@@ -5,6 +5,8 @@
 #![allow(clippy::all)]
 
 pub mod framing;
+pub mod generated;
+pub mod rules;
 
 pub mod game_common_generated {
     include!("flatbuffers_generated/game_common_generated.rs");

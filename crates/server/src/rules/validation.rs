@@ -1,6 +1,7 @@
 use rand_game_common::fb;
+use rand_game_common::rules::RuleCatalog;
 
-use crate::model::{Position, ResourceKind, ResourceStack, ValidatedAction};
+use crate::model::{BuildingKind, Position, ResourceKind, ResourceStack, ValidatedAction};
 use crate::protocol;
 use crate::world::WorldState;
 
@@ -18,6 +19,7 @@ pub fn validate_game_output(
     player_id: u64,
     output_payload: &[u8],
     rules: &ServerRules,
+    catalog: Option<&RuleCatalog>,
     debug_max_actions: Option<u32>,
 ) -> Result<ValidationReport, Box<dyn std::error::Error>> {
     let output = fb::root_as_game_output(output_payload)?;
@@ -58,7 +60,7 @@ pub fn validate_game_output(
 
     for index in 0..actions.len().min(max_actions as usize) {
         let action = actions.get(index);
-        match validate_action(world, player_id, action, rules) {
+        match validate_action(world, player_id, action, rules, catalog) {
             Ok(action) => report.actions.push(action),
             Err(reason) => report.rejected.push(format!("action {index}: {reason}")),
         }
@@ -72,6 +74,7 @@ pub fn validate_action(
     player_id: u64,
     action: fb::Action<'_>,
     rules: &ServerRules,
+    catalog: Option<&RuleCatalog>,
 ) -> Result<ValidatedAction, String> {
     let actor = world
         .entities
@@ -83,7 +86,9 @@ pub fn validate_action(
     match action.kind() {
         fb::ActionKind::Move => validate_move(world, actor.position, action),
         fb::ActionKind::Mine => validate_mine(world, actor.position, action, rules),
-        fb::ActionKind::Build => validate_build(world, player_id, actor.position, action, rules),
+        fb::ActionKind::Build => {
+            validate_build(world, player_id, actor.position, action, rules, catalog)
+        }
         fb::ActionKind::Lift => validate_lift(world, actor.position, action, rules),
         fb::ActionKind::Put => validate_put(actor.cargo.as_slice(), action),
         other => Err(format!("unsupported action kind {other:?}")),
@@ -139,6 +144,7 @@ fn validate_build(
     actor_position: Position,
     action: fb::Action<'_>,
     rules: &ServerRules,
+    catalog: Option<&RuleCatalog>,
 ) -> Result<ValidatedAction, String> {
     let target = required_target_position(action, "Build")?;
     if actor_position.manhattan(target) != 1 {
@@ -160,12 +166,49 @@ fn validate_build(
     if building_kind == crate::model::BuildingKind::None {
         return Err("building another core is not allowed in MVP".into());
     }
+    validate_building_catalog_rule(building_kind, catalog)?;
 
     Ok(ValidatedAction::Build {
         actor_entity_id: action.actor_entity_id(),
         target,
         building_kind,
     })
+}
+
+fn validate_building_catalog_rule(
+    building_kind: BuildingKind,
+    catalog: Option<&RuleCatalog>,
+) -> Result<(), String> {
+    let Some(catalog) = catalog else {
+        return Ok(());
+    };
+    let Some(spec_id) = default_building_spec_id(building_kind) else {
+        return Err(format!(
+            "building kind {building_kind:?} is not supported by YAML rules"
+        ));
+    };
+    let spec = catalog
+        .buildings
+        .buildings
+        .iter()
+        .find(|building| building.id == spec_id)
+        .ok_or_else(|| format!("YAML building spec `{spec_id}` is missing"))?;
+    if spec.width != 1 {
+        return Err(format!(
+            "YAML building spec `{spec_id}` has width {}, but multi-tile buildings are not supported yet",
+            spec.width
+        ));
+    }
+    Ok(())
+}
+
+fn default_building_spec_id(building_kind: BuildingKind) -> Option<&'static str> {
+    match building_kind {
+        BuildingKind::Miner => Some("min-1"),
+        BuildingKind::Storage => Some("box-1"),
+        BuildingKind::Assembler => Some("asm-1"),
+        BuildingKind::None | BuildingKind::Solar => None,
+    }
 }
 
 fn required_target_position(action: fb::Action<'_>, kind: &str) -> Result<Position, String> {
@@ -246,6 +289,9 @@ fn to_model_resource_kind(kind: fb::ResourceKind) -> Option<ResourceKind> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand_game_common::rules::{
+        BuildingCatalog, BuildingSpec, RecipeCatalog, RuleCatalog, validate_rule_catalog,
+    };
 
     #[test]
     fn debug_action_validation_ignores_actor_cooldown() {
@@ -268,8 +314,103 @@ mod tests {
         let action = flatbuffers::root::<fb::Action<'_>>(fbb.finished_data()).expect("action");
 
         assert_eq!(
-            validate_action(&world, 1, action, &ServerRules::default()),
+            validate_action(&world, 1, action, &ServerRules::default(), None),
             Err("lift action requires resource field".into())
         );
+    }
+
+    #[test]
+    fn build_validation_uses_yaml_catalog_when_enabled() {
+        let world = WorldState::new();
+        let player = world.players.get(&1).expect("player 1");
+        let action = build_action(player.worker_entity_id, fb::BuildingKind::Miner);
+        let catalog = catalog_with_building("min-1", 1);
+
+        let validated = validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog))
+            .expect("valid build");
+
+        assert!(matches!(validated, ValidatedAction::Build { .. }));
+    }
+
+    #[test]
+    fn build_validation_rejects_missing_yaml_building() {
+        let world = WorldState::new();
+        let player = world.players.get(&1).expect("player 1");
+        let action = build_action(player.worker_entity_id, fb::BuildingKind::Miner);
+        let catalog = catalog_with_building("asm-1", 1);
+
+        assert_eq!(
+            validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog)),
+            Err("YAML building spec `min-1` is missing".into())
+        );
+    }
+
+    #[test]
+    fn build_validation_rejects_multi_tile_yaml_building() {
+        let world = WorldState::new();
+        let player = world.players.get(&1).expect("player 1");
+        let action = build_action(player.worker_entity_id, fb::BuildingKind::Miner);
+        let catalog = catalog_with_building("min-1", 2);
+
+        assert_eq!(
+            validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog)),
+            Err("YAML building spec `min-1` has width 2, but multi-tile buildings are not supported yet".into())
+        );
+    }
+
+    fn build_action(actor_entity_id: u64, building_kind: fb::BuildingKind) -> fb::Action<'static> {
+        let mut fbb = flatbuffers::FlatBufferBuilder::new();
+        let target = fb::Vec2I::new(2, 0);
+        let action = fb::Action::create(
+            &mut fbb,
+            &fb::ActionArgs {
+                kind: fb::ActionKind::Build,
+                actor_entity_id,
+                target_position: Some(&target),
+                building_kind,
+                ..Default::default()
+            },
+        );
+        fbb.finish_minimal(action);
+        let data = fbb.finished_data().to_vec().leak();
+        flatbuffers::root::<fb::Action<'static>>(data).expect("action")
+    }
+
+    fn catalog_with_building(id: &str, width: u32) -> RuleCatalog {
+        let catalog = RuleCatalog {
+            buildings: BuildingCatalog {
+                buildings: vec![
+                    BuildingSpec {
+                        name: "Entity".into(),
+                        id: "entity".into(),
+                        crafting_time: Some(1),
+                        mining_time: Some(1),
+                        smelting_time: None,
+                        electricity: Some(0),
+                        energy: None,
+                        module_slot: Some(0),
+                        width: 1,
+                        capacity: None,
+                    },
+                    BuildingSpec {
+                        name: id.into(),
+                        id: id.into(),
+                        crafting_time: Some(1),
+                        mining_time: Some(1),
+                        smelting_time: None,
+                        electricity: Some(0),
+                        energy: None,
+                        module_slot: Some(0),
+                        width,
+                        capacity: None,
+                    },
+                ],
+            },
+            recipes: RecipeCatalog {
+                recipes: Vec::new(),
+            },
+        };
+        validate_rule_catalog(&catalog).expect("valid catalog");
+        catalog
     }
 }

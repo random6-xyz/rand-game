@@ -1,0 +1,32 @@
+recipes:
+  - name: "Iron Plate"
+    id: "iron-plate"
+    max_stack: 1000
+    building:
+      - "entity"
+      - "fur-1"
+      - "fur-2"
+      - "fur-3"
+    inputs:
+      - kind: "iron-ore"
+        amount: 1
+    crafting_time: 5
+    outputs:
+      - kind: "iron-plate"
+        amount: 1
+
+  - name: "Cupper Plate"
+    id: "cupper-plate"
+    max_stack: 1000
+    building:
+      - "entity"
+      - "fur-1"
+      - "fur-2"
+      - "fur-3"
+    inputs:
+      - kind: "cupper-ore"
+        amount: 1
+    crafting_time: 5
+    outputs:
+      - kind: "cupper-plate"
+        amount: 1

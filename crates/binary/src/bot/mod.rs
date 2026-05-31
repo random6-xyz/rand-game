@@ -5,6 +5,9 @@ mod output;
 mod pathfinding;
 mod planner;
 
+#[cfg(test)]
+mod rules_tests;
+
 use std::io::{self, Write};
 
 use rand_game_common::fb::*;

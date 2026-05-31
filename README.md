@@ -150,6 +150,7 @@ Configuration files:
 
 - `config/server.env.toml`: `world_seed`, `map_id`
 - `config/server.rules.toml`: tick interval, observation radius, API query radius, upload limit, and per-core-tier runtime profiles
+- `config/building.yaml`, `config/recipe.yaml`: source YAML catalogs compiled into `rand-game-common` at build time. The server and sample bot use the same generated Rust catalog.
 
 ## Crate Structure
 
