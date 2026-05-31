@@ -7,7 +7,7 @@ use crate::action_log::ActionLogEntry;
 use crate::protocol;
 use crate::rules;
 use crate::runner;
-use crate::state::SharedState;
+use crate::state::{BotStderrEvent, SharedState};
 use crate::storage;
 
 pub async fn run_tick_loop(state: SharedState) {
@@ -47,16 +47,26 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
             &state.inner().config.rules,
             state.inner().config.debug_max_actions,
         )?;
-        Some((player_id, bot_path, input_frame))
+        Some((player_id, bot_path, world.tick, input_frame))
     };
 
-    let Some((player_id, bot_path, input_frame)) = run_request else {
+    let Some((player_id, bot_path, tick, input_frame)) = run_request else {
         return Ok(());
     };
 
     let bot_result = runner::run_bot(&bot_path, &input_frame)?;
-    if state.inner().config.log_bot_stderr && !bot_result.stderr.trim().is_empty() {
-        log_bot_stderr(player_id, &bot_path, &bot_result.stderr);
+    if !bot_result.stderr.trim().is_empty() {
+        let event = BotStderrEvent {
+            tick,
+            player_id,
+            bot_path: bot_path.display().to_string(),
+            stderr: bot_result.stderr.clone(),
+        };
+        let _ = state.inner().bot_stderr.send(event);
+
+        if state.inner().config.log_bot_stderr {
+            log_bot_stderr(player_id, &bot_path, &bot_result.stderr);
+        }
     }
 
     let entries = {

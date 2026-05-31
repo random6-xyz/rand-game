@@ -5,3 +5,4 @@ edition.workspace = true
 license = "AGPL-3.0-or-later"
 
 [dependencies]
+tungstenite = "0.29"
