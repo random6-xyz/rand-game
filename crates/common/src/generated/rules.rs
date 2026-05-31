@@ -179,8 +179,8 @@ pub fn default_rule_catalog() -> RuleCatalog {
                     }],
                 },
                 RecipeSpec {
-                    name: "Cupper Plate".into(),
-                    id: "cupper-plate".into(),
+                    name: "Copper Plate".into(),
+                    id: "copper-plate".into(),
                     max_stack: 1000,
                     building: vec![
                         "entity".into(),
@@ -189,13 +189,100 @@ pub fn default_rule_catalog() -> RuleCatalog {
                         "fur-3".into(),
                     ],
                     inputs: vec![ItemStackSpec {
-                        kind: "cupper-ore".into(),
+                        kind: "copper-ore".into(),
                         amount: 1,
                     }],
                     crafting_time: 5,
                     outputs: vec![ItemStackSpec {
-                        kind: "cupper-plate".into(),
+                        kind: "copper-plate".into(),
                         amount: 1,
+                    }],
+                },
+                RecipeSpec {
+                    name: "Iron Gear".into(),
+                    id: "iron-gear".into(),
+                    max_stack: 1000,
+                    building: vec!["asm-1".into(), "asm-2".into(), "asm-3".into()],
+                    inputs: vec![ItemStackSpec {
+                        kind: "iron-plate".into(),
+                        amount: 2,
+                    }],
+                    crafting_time: 2,
+                    outputs: vec![ItemStackSpec {
+                        kind: "iron-gear".into(),
+                        amount: 1,
+                    }],
+                },
+                RecipeSpec {
+                    name: "Iron Rod".into(),
+                    id: "iron-rod".into(),
+                    max_stack: 1000,
+                    building: vec!["asm-1".into(), "asm-2".into(), "asm-3".into()],
+                    inputs: vec![ItemStackSpec {
+                        kind: "iron-plate".into(),
+                        amount: 1,
+                    }],
+                    crafting_time: 2,
+                    outputs: vec![ItemStackSpec {
+                        kind: "iron-rod".into(),
+                        amount: 2,
+                    }],
+                },
+                RecipeSpec {
+                    name: "Copper Wire".into(),
+                    id: "copper-wire".into(),
+                    max_stack: 1000,
+                    building: vec!["asm-1".into(), "asm-2".into(), "asm-3".into()],
+                    inputs: vec![ItemStackSpec {
+                        kind: "copper-plate".into(),
+                        amount: 1,
+                    }],
+                    crafting_time: 2,
+                    outputs: vec![ItemStackSpec {
+                        kind: "copper-wire".into(),
+                        amount: 2,
+                    }],
+                },
+                RecipeSpec {
+                    name: "Basic Circuit".into(),
+                    id: "basic-circuit".into(),
+                    max_stack: 1000,
+                    building: vec!["asm-1".into(), "asm-2".into(), "asm-3".into()],
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 1,
+                        },
+                        ItemStackSpec {
+                            kind: "copper-wire".into(),
+                            amount: 3,
+                        },
+                    ],
+                    crafting_time: 4,
+                    outputs: vec![ItemStackSpec {
+                        kind: "basic-circuit".into(),
+                        amount: 1,
+                    }],
+                },
+                RecipeSpec {
+                    name: "Conveyor Belt".into(),
+                    id: "conveyor-belt".into(),
+                    max_stack: 1000,
+                    building: vec!["asm-1".into(), "asm-2".into(), "asm-3".into()],
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 1,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-gear".into(),
+                            amount: 1,
+                        },
+                    ],
+                    crafting_time: 3,
+                    outputs: vec![ItemStackSpec {
+                        kind: "conveyor-belt".into(),
+                        amount: 2,
                     }],
                 },
             ],
