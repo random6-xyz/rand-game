@@ -16,6 +16,10 @@ pub struct ActionLog {
 }
 
 impl ActionLog {
+    pub fn from_entries(entries: Vec<ActionLogEntry>) -> Self {
+        Self { entries }
+    }
+
     pub fn push(&mut self, mut entry: ActionLogEntry) {
         if entry.count == 0 {
             entry.count = 1;
