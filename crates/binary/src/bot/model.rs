@@ -59,6 +59,10 @@ pub(crate) enum ActionPlan {
         recipe_id: String,
         target_building_id: u64,
     },
+    #[allow(dead_code)]
+    Research {
+        research_id: String,
+    },
 }
 
 pub(crate) struct PlannedAction {

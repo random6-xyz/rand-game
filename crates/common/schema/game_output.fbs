@@ -8,7 +8,8 @@ enum ActionKind : byte {
   Build = 2,
   Lift = 3,
   Put = 4,
-  Craft = 5
+  Craft = 5,
+  Research = 6
 }
 
 table Action {

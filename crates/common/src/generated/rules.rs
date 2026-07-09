@@ -3,7 +3,8 @@
 
 use crate::rules::validate_rule_catalog;
 use crate::rules::{
-    BuildingCatalog, BuildingSpec, ItemStackSpec, RecipeCatalog, RecipeSpec, RuleCatalog,
+    BuildingCatalog, BuildingSpec, ItemStackSpec, RecipeCatalog, RecipeSpec, ResearchCatalog,
+    ResearchSpec, RuleCatalog,
 };
 
 pub fn default_rule_catalog() -> RuleCatalog {
@@ -510,6 +511,84 @@ pub fn default_rule_catalog() -> RuleCatalog {
                         kind: "wood-plank".into(),
                         amount: 3,
                     }],
+                },
+            ],
+        },
+        researches: ResearchCatalog {
+            researches: vec![
+                ResearchSpec {
+                    name: "Basic Smelting".into(),
+                    id: "basic-smelting".into(),
+                    inputs: vec![ItemStackSpec {
+                        kind: "iron-ore".into(),
+                        amount: 10,
+                    }],
+                    unlocked_recipes: vec!["steel-plate".into(), "stone-brick".into()],
+                },
+                ResearchSpec {
+                    name: "Advanced Manufacturing".into(),
+                    id: "advanced-manufacturing".into(),
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 20,
+                        },
+                        ItemStackSpec {
+                            kind: "copper-wire".into(),
+                            amount: 10,
+                        },
+                    ],
+                    unlocked_recipes: vec![
+                        "basic-circuit".into(),
+                        "conveyor-belt".into(),
+                        "iron-frame".into(),
+                        "pipe".into(),
+                    ],
+                },
+                ResearchSpec {
+                    name: "Precision Engineering".into(),
+                    id: "precision-engineering".into(),
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "basic-circuit".into(),
+                            amount: 5,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 30,
+                        },
+                    ],
+                    unlocked_recipes: vec!["motor".into(), "energy-cell".into()],
+                },
+                ResearchSpec {
+                    name: "Logistics Systems".into(),
+                    id: "logistics-systems".into(),
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "conveyor-belt".into(),
+                            amount: 10,
+                        },
+                        ItemStackSpec {
+                            kind: "motor".into(),
+                            amount: 5,
+                        },
+                    ],
+                    unlocked_recipes: vec!["fast-conveyor-belt".into()],
+                },
+                ResearchSpec {
+                    name: "Advanced Electronics".into(),
+                    id: "advanced-electronics".into(),
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "basic-circuit".into(),
+                            amount: 10,
+                        },
+                        ItemStackSpec {
+                            kind: "copper-wire".into(),
+                            amount: 20,
+                        },
+                    ],
+                    unlocked_recipes: vec!["advanced-circuit".into()],
                 },
             ],
         },

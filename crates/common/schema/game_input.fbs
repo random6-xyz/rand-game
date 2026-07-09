@@ -27,6 +27,7 @@ table GameInput {
   observation:Observation;
   persistent_memory:[ubyte];
   runtime_limits:RuntimeLimits;
+  researched_recipe_ids:[string];
 }
 
 root_type GameInput;

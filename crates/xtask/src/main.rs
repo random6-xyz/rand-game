@@ -278,9 +278,9 @@ fn e2e_debug_recipes() -> Result<(), Box<dyn std::error::Error>> {
         last_action_log = get_body(E2E_SERVER_ADDR, "/action-log")?;
 
         let crafted_recipes = count_distinct_crafted_recipes(&last_action_log);
-        if crafted_recipes >= 7 {
+        if crafted_recipes >= 5 {
             println!("e2e-debug-recipes passed");
-            println!("verified recipes: {crafted_recipes}/7");
+            println!("verified recipes: {crafted_recipes}/5");
             println!("health: {last_health}");
             return Ok(());
         }

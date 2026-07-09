@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 mod cargo;
@@ -235,6 +235,11 @@ impl WorldState {
                 ref outputs,
                 ..
             } => self.apply_craft(actor_entity_id, recipe_id, inputs, outputs),
+            ValidatedAction::Research {
+                actor_entity_id,
+                ref research_id,
+                ref inputs,
+            } => self.apply_research(player_id, actor_entity_id, research_id, inputs),
         }
     }
 
@@ -412,6 +417,29 @@ impl WorldState {
         format!("entity {actor_entity_id} crafted {recipe_id}")
     }
 
+    fn apply_research(
+        &mut self,
+        player_id: u64,
+        actor_entity_id: u64,
+        research_id: &str,
+        inputs: &[ItemStack],
+    ) -> String {
+        let entity = self
+            .entities
+            .get_mut(&actor_entity_id)
+            .expect("validated research actor must exist");
+        for input in inputs {
+            remove_cargo(entity, &input.kind, input.amount);
+        }
+        let player = self
+            .players
+            .get_mut(&player_id)
+            .expect("validated research player must exist");
+        player.researched_ids.insert(research_id.to_string());
+
+        format!("entity {actor_entity_id} researched {research_id}")
+    }
+
     fn set_tile_resource(&mut self, position: Position, resource: Option<ResourceStack>) {
         self.tile_overrides.entry(position).or_default().resource = Some(resource);
     }
@@ -462,6 +490,7 @@ impl WorldState {
                 core_tier: CoreTier::Basic,
                 bot_path: PathBuf::new(),
                 persistent_memory: Vec::new(),
+                researched_ids: HashSet::new(),
             },
         );
     }
@@ -573,5 +602,41 @@ mod tests {
                 .iter()
                 .any(|stack| stack.kind == "iron-plate" && stack.amount == 1)
         );
+    }
+
+    #[test]
+    fn research_action_consumes_inputs_and_unlocks_recipes() {
+        let mut world = WorldState::new();
+        let player_id = 1;
+        let actor_id = world
+            .players
+            .get(&player_id)
+            .expect("player")
+            .worker_entity_id;
+        world.entities.get_mut(&actor_id).expect("actor").cargo = vec![ItemStack {
+            kind: "iron-ore".into(),
+            amount: 10,
+        }];
+
+        let result = world.apply_action(
+            player_id,
+            &ValidatedAction::Research {
+                actor_entity_id: actor_id,
+                research_id: "basic-smelting".into(),
+                inputs: vec![ItemStack {
+                    kind: "iron-ore".into(),
+                    amount: 10,
+                }],
+            },
+        );
+
+        let cargo = &world.entities.get(&actor_id).expect("actor").cargo;
+        let player = world.players.get(&player_id).expect("player");
+        assert_eq!(
+            result,
+            format!("entity {actor_id} researched basic-smelting")
+        );
+        assert!(!cargo.iter().any(|stack| stack.kind == "iron-ore"));
+        assert!(player.researched_ids.contains("basic-smelting"));
     }
 }

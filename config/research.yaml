@@ -1,0 +1,53 @@
+researches:
+  - name: "Basic Smelting"
+    id: "basic-smelting"
+    inputs:
+      - kind: "iron-ore"
+        amount: 10
+    unlocked_recipes:
+      - "steel-plate"
+      - "stone-brick"
+
+  - name: "Advanced Manufacturing"
+    id: "advanced-manufacturing"
+    inputs:
+      - kind: "iron-plate"
+        amount: 20
+      - kind: "copper-wire"
+        amount: 10
+    unlocked_recipes:
+      - "basic-circuit"
+      - "conveyor-belt"
+      - "iron-frame"
+      - "pipe"
+
+  - name: "Precision Engineering"
+    id: "precision-engineering"
+    inputs:
+      - kind: "basic-circuit"
+        amount: 5
+      - kind: "iron-plate"
+        amount: 30
+    unlocked_recipes:
+      - "motor"
+      - "energy-cell"
+
+  - name: "Logistics Systems"
+    id: "logistics-systems"
+    inputs:
+      - kind: "conveyor-belt"
+        amount: 10
+      - kind: "motor"
+        amount: 5
+    unlocked_recipes:
+      - "fast-conveyor-belt"
+
+  - name: "Advanced Electronics"
+    id: "advanced-electronics"
+    inputs:
+      - kind: "basic-circuit"
+        amount: 10
+      - kind: "copper-wire"
+        amount: 20
+    unlocked_recipes:
+      - "advanced-circuit"

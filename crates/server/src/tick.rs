@@ -50,6 +50,7 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
             player_id,
             &state.inner().config.rules,
             state.inner().config.debug_max_actions,
+            &state.inner().config.rule_catalog,
         )?;
         Some((player_id, bot_path, world.tick, profile, input_frame))
     };

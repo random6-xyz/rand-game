@@ -87,7 +87,7 @@ fn save_world_to_path(world: &WorldState, path: &Path) -> Result<(), Box<dyn std
 
     for player in world.players.values() {
         tx.execute(
-            "INSERT INTO players (id, core_entity_id, worker_entity_id, core_building_id, core_tier, bot_path, persistent_memory) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO players (id, core_entity_id, worker_entity_id, core_building_id, core_tier, bot_path, persistent_memory, researched_ids) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 to_i64(player.id)?,
                 to_i64(player.core_entity_id)?,
@@ -96,6 +96,7 @@ fn save_world_to_path(world: &WorldState, path: &Path) -> Result<(), Box<dyn std
                 to_json(&player.core_tier)?,
                 player.bot_path.to_string_lossy().as_ref(),
                 &player.persistent_memory,
+                to_json(&player.researched_ids)?,
             ],
         )?;
     }
@@ -225,11 +226,12 @@ fn load_world_from_path(path: &Path) -> Result<Option<WorldState>, Box<dyn std::
 
     let mut players = HashMap::new();
     let mut player_rows = conn.prepare(
-        "SELECT id, core_entity_id, worker_entity_id, core_building_id, core_tier, bot_path, persistent_memory FROM players",
+        "SELECT id, core_entity_id, worker_entity_id, core_building_id, core_tier, bot_path, persistent_memory, researched_ids FROM players",
     )?;
     let player_iter = player_rows.query_map([], |row| {
         let core_tier_json: String = row.get(4)?;
         let bot_path: String = row.get(5)?;
+        let researched_ids_json: String = row.get::<_, String>(7).unwrap_or_else(|_| "[]".into());
         Ok((
             row.get::<_, i64>(0)?,
             row.get::<_, i64>(1)?,
@@ -238,6 +240,7 @@ fn load_world_from_path(path: &Path) -> Result<Option<WorldState>, Box<dyn std::
             core_tier_json,
             bot_path,
             row.get::<_, Vec<u8>>(6)?,
+            researched_ids_json,
         ))
     })?;
     for player in player_iter {
@@ -249,6 +252,7 @@ fn load_world_from_path(path: &Path) -> Result<Option<WorldState>, Box<dyn std::
             core_tier_json,
             bot_path,
             persistent_memory,
+            researched_ids_json,
         ) = player?;
         let id = from_i64(id, "player id")?;
         players.insert(
@@ -261,6 +265,7 @@ fn load_world_from_path(path: &Path) -> Result<Option<WorldState>, Box<dyn std::
                 core_tier: from_json::<CoreTier>(&core_tier_json)?,
                 bot_path: PathBuf::from(bot_path),
                 persistent_memory,
+                researched_ids: serde_json::from_str(&researched_ids_json).unwrap_or_default(),
             },
         );
     }
@@ -460,7 +465,8 @@ fn ensure_schema(conn: &Connection) -> rusqlite::Result<()> {
             core_building_id INTEGER NOT NULL,
             core_tier TEXT NOT NULL,
             bot_path TEXT NOT NULL,
-            persistent_memory BLOB NOT NULL
+            persistent_memory BLOB NOT NULL,
+            researched_ids TEXT NOT NULL DEFAULT '[]'
         );
 
         CREATE TABLE IF NOT EXISTS entities (
@@ -593,6 +599,34 @@ mod tests {
         assert_eq!(resource, expected_resource);
         let resource = resource.expect("stored resource");
         assert_eq!(resource.kind, ResourceKind::Energy);
+
+        cleanup(&path);
+    }
+
+    #[test]
+    fn saves_and_loads_player_research_state() {
+        let path = test_db_path("research");
+        let mut world = WorldState::new();
+        let player_id = 1;
+        let player = world.players.get_mut(&player_id).expect("player");
+        player.researched_ids.insert("basic-smelting".to_string());
+        player
+            .researched_ids
+            .insert("advanced-manufacturing".to_string());
+
+        save_world_to_path(&world, &path).expect("save world");
+        let loaded = load_world_from_path(&path)
+            .expect("load world")
+            .expect("stored world");
+        let loaded_player = loaded.players.get(&player_id).expect("player");
+
+        assert_eq!(loaded_player.researched_ids.len(), 2);
+        assert!(loaded_player.researched_ids.contains("basic-smelting"));
+        assert!(
+            loaded_player
+                .researched_ids
+                .contains("advanced-manufacturing")
+        );
 
         cleanup(&path);
     }

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -110,6 +111,11 @@ pub enum ValidatedAction {
         inputs: Vec<ItemStack>,
         outputs: Vec<ItemStack>,
     },
+    Research {
+        actor_entity_id: u64,
+        research_id: String,
+        inputs: Vec<ItemStack>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -157,6 +163,7 @@ pub struct Player {
     pub core_tier: CoreTier,
     pub bot_path: PathBuf,
     pub persistent_memory: Vec<u8>,
+    pub researched_ids: HashSet<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

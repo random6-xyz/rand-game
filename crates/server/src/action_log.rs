@@ -87,6 +87,7 @@ const fn action_kind(action: &ValidatedAction) -> u8 {
         ValidatedAction::Lift { .. } => 3,
         ValidatedAction::Put { .. } => 4,
         ValidatedAction::Craft { .. } => 5,
+        ValidatedAction::Research { .. } => 6,
     }
 }
 
