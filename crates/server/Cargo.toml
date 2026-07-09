@@ -6,10 +6,10 @@ license = "AGPL-3.0-or-later"
 
 [dependencies]
 axum = { version = "0.8", features = ["ws"] }
-bincode = "1"
 bytes = "1"
 flatbuffers = "25"
 rand-game-common = { path = "../common" }
+rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["fs", "macros", "net", "rt-multi-thread", "sync", "time"] }

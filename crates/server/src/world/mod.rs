@@ -24,6 +24,18 @@ pub struct WorldState {
     next_id: u64,
 }
 
+pub(crate) struct WorldStateParts {
+    pub world_seed: u64,
+    pub map_id: u32,
+    pub tick: u64,
+    pub observation_radius: u32,
+    pub players: HashMap<u64, Player>,
+    pub entities: HashMap<u64, Entity>,
+    pub buildings: HashMap<u64, Building>,
+    pub tile_overrides: HashMap<Position, TileOverride>,
+    pub next_id: u64,
+}
+
 impl WorldState {
     #[cfg(test)]
     pub fn new() -> Self {
@@ -70,6 +82,28 @@ impl WorldState {
 
     pub fn stored_tile_change_count(&self) -> usize {
         self.tile_overrides.len()
+    }
+
+    pub(crate) fn from_parts(parts: WorldStateParts) -> Self {
+        Self {
+            world_seed: parts.world_seed,
+            map_id: parts.map_id,
+            tick: parts.tick,
+            observation_radius: parts.observation_radius,
+            players: parts.players,
+            entities: parts.entities,
+            buildings: parts.buildings,
+            tile_overrides: parts.tile_overrides,
+            next_id: parts.next_id,
+        }
+    }
+
+    pub(crate) fn tile_overrides(&self) -> &HashMap<Position, TileOverride> {
+        &self.tile_overrides
+    }
+
+    pub(crate) fn next_id(&self) -> u64 {
+        self.next_id
     }
 
     pub fn map_kind(&self) -> MapKind {

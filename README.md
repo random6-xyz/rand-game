@@ -10,8 +10,7 @@ The current codebase includes a single-process server, FlatBuffers-based bot I/O
 
 - Rust workspace crates: `server`, `client`, `common`, `binary`, `xtask`
 - Deterministic 2D tile generation from `world_seed`, `map_id`, and coordinates
-- Delta-like world storage: changed tiles, entities, buildings, and players are saved to `var/server/world.bin`
-- Action log storage in `var/server/action-log.bin`
+- SQLite-backed world storage: changed tiles, entities, buildings, players, and action logs are saved to `var/server/state.sqlite3`
 - HTTP API for health, world queries, entities, action log, ASCII map view, bot uploads, and bot stderr streaming
 - Bot protocol using `magic + little-endian u32 length + FlatBuffer payload`
 - Sample bot that reads `GameInput` from stdin and writes `GameOutput` to stdout
