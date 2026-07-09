@@ -310,6 +310,207 @@ pub fn default_rule_catalog() -> RuleCatalog {
                         amount: 2,
                     }],
                 },
+                RecipeSpec {
+                    name: "Stone Brick".into(),
+                    id: "stone-brick".into(),
+                    max_stack: 1000,
+                    building: vec![
+                        "entity".into(),
+                        "fur-1".into(),
+                        "fur-2".into(),
+                        "fur-3".into(),
+                    ],
+                    inputs: vec![ItemStackSpec {
+                        kind: "stone".into(),
+                        amount: 2,
+                    }],
+                    crafting_time: 5,
+                    outputs: vec![ItemStackSpec {
+                        kind: "stone-brick".into(),
+                        amount: 2,
+                    }],
+                },
+                RecipeSpec {
+                    name: "Steel Plate".into(),
+                    id: "steel-plate".into(),
+                    max_stack: 500,
+                    building: vec!["fur-1".into(), "fur-2".into(), "fur-3".into()],
+                    inputs: vec![ItemStackSpec {
+                        kind: "iron-plate".into(),
+                        amount: 3,
+                    }],
+                    crafting_time: 10,
+                    outputs: vec![ItemStackSpec {
+                        kind: "steel-plate".into(),
+                        amount: 1,
+                    }],
+                },
+                RecipeSpec {
+                    name: "Pipe".into(),
+                    id: "pipe".into(),
+                    max_stack: 1000,
+                    building: vec![
+                        "entity".into(),
+                        "asm-1".into(),
+                        "asm-2".into(),
+                        "asm-3".into(),
+                    ],
+                    inputs: vec![ItemStackSpec {
+                        kind: "iron-plate".into(),
+                        amount: 1,
+                    }],
+                    crafting_time: 3,
+                    outputs: vec![ItemStackSpec {
+                        kind: "pipe".into(),
+                        amount: 2,
+                    }],
+                },
+                RecipeSpec {
+                    name: "Motor".into(),
+                    id: "motor".into(),
+                    max_stack: 500,
+                    building: vec!["asm-1".into(), "asm-2".into(), "asm-3".into()],
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "iron-gear".into(),
+                            amount: 1,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-rod".into(),
+                            amount: 1,
+                        },
+                        ItemStackSpec {
+                            kind: "copper-wire".into(),
+                            amount: 2,
+                        },
+                    ],
+                    crafting_time: 6,
+                    outputs: vec![ItemStackSpec {
+                        kind: "motor".into(),
+                        amount: 1,
+                    }],
+                },
+                RecipeSpec {
+                    name: "Fast Conveyor Belt".into(),
+                    id: "fast-conveyor-belt".into(),
+                    max_stack: 500,
+                    building: vec!["asm-1".into(), "asm-2".into(), "asm-3".into()],
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "conveyor-belt".into(),
+                            amount: 1,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-gear".into(),
+                            amount: 2,
+                        },
+                        ItemStackSpec {
+                            kind: "motor".into(),
+                            amount: 1,
+                        },
+                    ],
+                    crafting_time: 5,
+                    outputs: vec![ItemStackSpec {
+                        kind: "fast-conveyor-belt".into(),
+                        amount: 2,
+                    }],
+                },
+                RecipeSpec {
+                    name: "Advanced Circuit".into(),
+                    id: "advanced-circuit".into(),
+                    max_stack: 500,
+                    building: vec!["asm-1".into(), "asm-2".into(), "asm-3".into()],
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "basic-circuit".into(),
+                            amount: 1,
+                        },
+                        ItemStackSpec {
+                            kind: "copper-wire".into(),
+                            amount: 4,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 2,
+                        },
+                    ],
+                    crafting_time: 8,
+                    outputs: vec![ItemStackSpec {
+                        kind: "advanced-circuit".into(),
+                        amount: 1,
+                    }],
+                },
+                RecipeSpec {
+                    name: "Iron Frame".into(),
+                    id: "iron-frame".into(),
+                    max_stack: 500,
+                    building: vec![
+                        "entity".into(),
+                        "asm-1".into(),
+                        "asm-2".into(),
+                        "asm-3".into(),
+                    ],
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "iron-rod".into(),
+                            amount: 2,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 2,
+                        },
+                    ],
+                    crafting_time: 5,
+                    outputs: vec![ItemStackSpec {
+                        kind: "iron-frame".into(),
+                        amount: 1,
+                    }],
+                },
+                RecipeSpec {
+                    name: "Energy Cell".into(),
+                    id: "energy-cell".into(),
+                    max_stack: 500,
+                    building: vec!["asm-1".into(), "asm-2".into(), "asm-3".into()],
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "copper-wire".into(),
+                            amount: 2,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 1,
+                        },
+                        ItemStackSpec {
+                            kind: "energy".into(),
+                            amount: 5,
+                        },
+                    ],
+                    crafting_time: 5,
+                    outputs: vec![ItemStackSpec {
+                        kind: "energy-cell".into(),
+                        amount: 1,
+                    }],
+                },
+                RecipeSpec {
+                    name: "Wood Plank".into(),
+                    id: "wood-plank".into(),
+                    max_stack: 1000,
+                    building: vec![
+                        "entity".into(),
+                        "asm-1".into(),
+                        "asm-2".into(),
+                        "asm-3".into(),
+                    ],
+                    inputs: vec![ItemStackSpec {
+                        kind: "tree".into(),
+                        amount: 2,
+                    }],
+                    crafting_time: 3,
+                    outputs: vec![ItemStackSpec {
+                        kind: "wood-plank".into(),
+                        amount: 3,
+                    }],
+                },
             ],
         },
     };

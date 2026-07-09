@@ -74,6 +74,7 @@ pub enum BuildingKind {
     Storage,
     Solar,
     Assembler,
+    Furnace,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

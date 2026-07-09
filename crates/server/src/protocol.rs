@@ -173,6 +173,7 @@ pub fn to_model_building_kind(kind: fb::BuildingKind) -> Option<model::BuildingK
         fb::BuildingKind::Storage => Some(model::BuildingKind::Storage),
         fb::BuildingKind::Solar => Some(model::BuildingKind::Solar),
         fb::BuildingKind::Assembler => Some(model::BuildingKind::Assembler),
+        fb::BuildingKind::Furnace => Some(model::BuildingKind::Furnace),
         _ => None,
     }
 }
@@ -203,6 +204,7 @@ fn to_fb_building_kind(kind: model::BuildingKind) -> fb::BuildingKind {
         model::BuildingKind::Storage => fb::BuildingKind::Storage,
         model::BuildingKind::Solar => fb::BuildingKind::Solar,
         model::BuildingKind::Assembler => fb::BuildingKind::Assembler,
+        model::BuildingKind::Furnace => fb::BuildingKind::Furnace,
     }
 }
 

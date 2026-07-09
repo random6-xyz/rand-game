@@ -25,7 +25,8 @@ enum BuildingKind : byte {
   Miner = 1,
   Storage = 2,
   Solar = 3,
-  Assembler = 4
+  Assembler = 4,
+  Furnace = 5
 }
 
 enum EntityKind : byte {

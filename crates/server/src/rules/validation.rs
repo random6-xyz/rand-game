@@ -208,6 +208,7 @@ fn default_building_spec_id(building_kind: BuildingKind) -> Option<&'static str>
         BuildingKind::Miner => Some("min-1"),
         BuildingKind::Storage => Some("box-1"),
         BuildingKind::Assembler => Some("asm-1"),
+        BuildingKind::Furnace => Some("fur-1"),
         BuildingKind::None | BuildingKind::Solar => None,
     }
 }
@@ -497,6 +498,16 @@ mod tests {
                 power: 0,
             },
         );
+        world.buildings.insert(
+            98,
+            Building {
+                id: 98,
+                kind: BuildingKind::Furnace,
+                owner_id: 1,
+                position: Position::new(3, 0),
+                power: 0,
+            },
+        );
 
         for recipe in &catalog.recipes.recipes {
             let actor = world.entities.get_mut(&actor_id).expect("actor");
@@ -511,8 +522,14 @@ mod tests {
             let target_building_id = if recipe.building.iter().any(|building| building == "entity")
             {
                 0
-            } else {
+            } else if recipe
+                .building
+                .iter()
+                .any(|building| building.starts_with("asm"))
+            {
                 99
+            } else {
+                98
             };
             let action = craft_action(actor_id, &recipe.id, target_building_id);
 

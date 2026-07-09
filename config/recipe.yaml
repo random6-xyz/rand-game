@@ -114,3 +114,160 @@ recipes:
     outputs:
       - kind: "conveyor-belt"
         amount: 2
+
+  - name: "Stone Brick"
+    id: "stone-brick"
+    max_stack: 1000
+    building:
+      - "entity"
+      - "fur-1"
+      - "fur-2"
+      - "fur-3"
+    inputs:
+      - kind: "stone"
+        amount: 2
+    crafting_time: 5
+    outputs:
+      - kind: "stone-brick"
+        amount: 2
+
+  - name: "Steel Plate"
+    id: "steel-plate"
+    max_stack: 500
+    building:
+      - "fur-1"
+      - "fur-2"
+      - "fur-3"
+    inputs:
+      - kind: "iron-plate"
+        amount: 3
+    crafting_time: 10
+    outputs:
+      - kind: "steel-plate"
+        amount: 1
+
+  - name: "Pipe"
+    id: "pipe"
+    max_stack: 1000
+    building:
+      - "entity"
+      - "asm-1"
+      - "asm-2"
+      - "asm-3"
+    inputs:
+      - kind: "iron-plate"
+        amount: 1
+    crafting_time: 3
+    outputs:
+      - kind: "pipe"
+        amount: 2
+
+  - name: "Motor"
+    id: "motor"
+    max_stack: 500
+    building:
+      - "asm-1"
+      - "asm-2"
+      - "asm-3"
+    inputs:
+      - kind: "iron-gear"
+        amount: 1
+      - kind: "iron-rod"
+        amount: 1
+      - kind: "copper-wire"
+        amount: 2
+    crafting_time: 6
+    outputs:
+      - kind: "motor"
+        amount: 1
+
+  - name: "Fast Conveyor Belt"
+    id: "fast-conveyor-belt"
+    max_stack: 500
+    building:
+      - "asm-1"
+      - "asm-2"
+      - "asm-3"
+    inputs:
+      - kind: "conveyor-belt"
+        amount: 1
+      - kind: "iron-gear"
+        amount: 2
+      - kind: "motor"
+        amount: 1
+    crafting_time: 5
+    outputs:
+      - kind: "fast-conveyor-belt"
+        amount: 2
+
+  - name: "Advanced Circuit"
+    id: "advanced-circuit"
+    max_stack: 500
+    building:
+      - "asm-1"
+      - "asm-2"
+      - "asm-3"
+    inputs:
+      - kind: "basic-circuit"
+        amount: 1
+      - kind: "copper-wire"
+        amount: 4
+      - kind: "iron-plate"
+        amount: 2
+    crafting_time: 8
+    outputs:
+      - kind: "advanced-circuit"
+        amount: 1
+
+  - name: "Iron Frame"
+    id: "iron-frame"
+    max_stack: 500
+    building:
+      - "entity"
+      - "asm-1"
+      - "asm-2"
+      - "asm-3"
+    inputs:
+      - kind: "iron-rod"
+        amount: 2
+      - kind: "iron-plate"
+        amount: 2
+    crafting_time: 5
+    outputs:
+      - kind: "iron-frame"
+        amount: 1
+
+  - name: "Energy Cell"
+    id: "energy-cell"
+    max_stack: 500
+    building:
+      - "asm-1"
+      - "asm-2"
+      - "asm-3"
+    inputs:
+      - kind: "copper-wire"
+        amount: 2
+      - kind: "iron-plate"
+        amount: 1
+      - kind: "energy"
+        amount: 5
+    crafting_time: 5
+    outputs:
+      - kind: "energy-cell"
+        amount: 1
+
+  - name: "Wood Plank"
+    id: "wood-plank"
+    max_stack: 1000
+    building:
+      - "entity"
+      - "asm-1"
+      - "asm-2"
+      - "asm-3"
+    inputs:
+      - kind: "tree"
+        amount: 2
+    crafting_time: 3
+    outputs:
+      - kind: "wood-plank"
+        amount: 3
