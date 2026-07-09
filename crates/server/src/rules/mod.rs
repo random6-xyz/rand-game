@@ -14,6 +14,9 @@ pub const DEFAULT_WORLD_RADIUS: i32 = 4;
 pub const MAX_DEBUG_MAP_VIEW_RADIUS: i32 = 128;
 pub const MAX_BOT_UPLOAD_BYTES: usize = 16 * 1024 * 1024;
 pub const BUILD_CORE_RADIUS: u32 = 4;
+pub const BOT_STDERR_CHANNEL_CAPACITY: usize = 128;
+pub const MAX_ACTION_LOG_ENTRIES: usize = 10000;
+pub const ACTION_LOG_PAGE_SIZE: usize = 100;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
@@ -44,6 +47,9 @@ pub struct ServerRules {
     pub default_world_radius: i32,
     pub max_bot_upload_bytes: usize,
     pub build_core_radius: u32,
+    pub bot_stderr_channel_capacity: usize,
+    pub max_action_log_entries: usize,
+    pub action_log_page_size: usize,
     pub basic_core: RuntimeProfileConfig,
     pub standard_core: RuntimeProfileConfig,
     pub advanced_core: RuntimeProfileConfig,
@@ -62,6 +68,9 @@ impl Default for ServerRules {
             default_world_radius: DEFAULT_WORLD_RADIUS,
             max_bot_upload_bytes: MAX_BOT_UPLOAD_BYTES,
             build_core_radius: BUILD_CORE_RADIUS,
+            bot_stderr_channel_capacity: BOT_STDERR_CHANNEL_CAPACITY,
+            max_action_log_entries: MAX_ACTION_LOG_ENTRIES,
+            action_log_page_size: ACTION_LOG_PAGE_SIZE,
             basic_core: RuntimeProfileConfig::basic(),
             standard_core: RuntimeProfileConfig::standard(),
             advanced_core: RuntimeProfileConfig::advanced(),

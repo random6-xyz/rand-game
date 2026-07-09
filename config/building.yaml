@@ -13,6 +13,11 @@ buildings:
     electricity: 5
     module_slot: 2
     width: 1
+    inputs:
+      - kind: "iron-plate"
+        amount: 5
+      - kind: "iron-gear"
+        amount: 3
 
   - name: "Assembly Machine 2"
     id: "asm-2"
@@ -20,6 +25,13 @@ buildings:
     electricity: 7
     module_slot: 4
     width: 2
+    inputs:
+      - kind: "iron-plate"
+        amount: 10
+      - kind: "iron-gear"
+        amount: 6
+      - kind: "basic-circuit"
+        amount: 2
 
   - name: "Assembly Machine 3"
     id: "asm-3"
@@ -27,6 +39,15 @@ buildings:
     electricity: 9
     module_slot: 6
     width: 3
+    inputs:
+      - kind: "iron-plate"
+        amount: 20
+      - kind: "iron-gear"
+        amount: 12
+      - kind: "basic-circuit"
+        amount: 5
+      - kind: "advanced-circuit"
+        amount: 2
 
   - name: "Miner 1"
     id: "min-1"
@@ -34,6 +55,11 @@ buildings:
     energy: 5
     module_slot: 2
     width: 1
+    inputs:
+      - kind: "iron-plate"
+        amount: 3
+      - kind: "iron-gear"
+        amount: 2
 
   - name: "Miner 2"
     id: "min-2"
@@ -41,6 +67,13 @@ buildings:
     electricity: 7
     module_slot: 4
     width: 2
+    inputs:
+      - kind: "iron-plate"
+        amount: 8
+      - kind: "iron-gear"
+        amount: 4
+      - kind: "basic-circuit"
+        amount: 1
 
   - name: "Miner 3"
     id: "min-3"
@@ -48,6 +81,15 @@ buildings:
     electricity: 9
     module_slot: 6
     width: 3
+    inputs:
+      - kind: "iron-plate"
+        amount: 15
+      - kind: "iron-gear"
+        amount: 8
+      - kind: "basic-circuit"
+        amount: 3
+      - kind: "advanced-circuit"
+        amount: 1
 
   - name: "Furnace 1"
     id: "fur-1"
@@ -55,6 +97,11 @@ buildings:
     energy: 5
     module_slot: 2
     width: 1
+    inputs:
+      - kind: "stone"
+        amount: 5
+      - kind: "iron-plate"
+        amount: 2
 
   - name: "Furnace 2"
     id: "fur-2"
@@ -62,6 +109,13 @@ buildings:
     electricity: 7
     module_slot: 4
     width: 2
+    inputs:
+      - kind: "stone"
+        amount: 10
+      - kind: "iron-plate"
+        amount: 5
+      - kind: "basic-circuit"
+        amount: 1
 
   - name: "Furnace 3"
     id: "fur-3"
@@ -69,13 +123,30 @@ buildings:
     electricity: 9
     module_slot: 6
     width: 3
+    inputs:
+      - kind: "stone"
+        amount: 20
+      - kind: "iron-plate"
+        amount: 10
+      - kind: "basic-circuit"
+        amount: 3
+      - kind: "advanced-circuit"
+        amount: 1
 
   - name: "Box 1"
     id: "box-1"
     capacity: 100
     width: 1
+    inputs:
+      - kind: "iron-plate"
+        amount: 2
 
   - name: "Box 2"
     id: "box-2"
     capacity: 500
     width: 2
+    inputs:
+      - kind: "iron-plate"
+        amount: 6
+      - kind: "basic-circuit"
+        amount: 1

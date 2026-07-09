@@ -20,6 +20,8 @@ pub struct BuildingSpec {
     pub module_slot: Option<u32>,
     pub width: u32,
     pub capacity: Option<u32>,
+    #[serde(default)]
+    pub inputs: Vec<ItemStackSpec>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -104,6 +106,15 @@ pub fn validate_building_catalog(catalog: &BuildingCatalog) -> Result<(), String
                 "building `{}` width must be greater than 0",
                 building.id
             ));
+        }
+        for input in &building.inputs {
+            validate_non_empty(&input.kind, "building input kind")?;
+            if input.amount == 0 {
+                return Err(format!(
+                    "building `{}` input `{}` amount must be greater than 0",
+                    building.id, input.kind
+                ));
+            }
         }
         if !ids.insert(building.id.as_str()) {
             return Err(format!("duplicate building id `{}`", building.id));

@@ -127,9 +127,25 @@ async fn entities(State(state): State<SharedState>) -> Json<Vec<Entity>> {
     Json(entities)
 }
 
-async fn action_log(State(state): State<SharedState>) -> Json<Vec<ActionLogEntry>> {
+async fn action_log(
+    State(state): State<SharedState>,
+    Query(query): Query<ActionLogQuery>,
+) -> Json<ActionLogResponse> {
+    let page_size = state.inner().config.rules.action_log_page_size.max(1);
+    let limit = query.limit.unwrap_or(page_size).clamp(1, page_size * 10);
+    let offset = query.offset.unwrap_or(0).max(0);
     let action_log = state.inner().action_log.lock().await;
-    Json(action_log.entries().to_vec())
+    let entries = action_log.entries();
+    let total = entries.len();
+    let start = offset.min(total);
+    let end = (start + limit).min(total);
+    let slice = entries[start..end].to_vec();
+    Json(ActionLogResponse {
+        entries: slice,
+        total,
+        limit,
+        offset,
+    })
 }
 
 async fn bot_stderr(
@@ -146,7 +162,10 @@ async fn stream_bot_stderr(mut socket: WebSocket, state: SharedState, player_id:
     loop {
         let event = match receiver.recv().await {
             Ok(event) => event,
-            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                eprintln!("bot-stderr channel lagged: dropped {n} events");
+                continue;
+            }
             Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
         };
         if player_id.is_some_and(|player_id| player_id != event.player_id) {
@@ -248,6 +267,20 @@ struct UploadQuery {
 #[derive(Debug, Deserialize)]
 struct BotStderrQuery {
     player_id: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ActionLogQuery {
+    limit: Option<usize>,
+    offset: Option<usize>,
+}
+
+#[derive(Debug, Serialize)]
+struct ActionLogResponse {
+    entries: Vec<ActionLogEntry>,
+    total: usize,
+    limit: usize,
+    offset: usize,
 }
 
 #[derive(Debug, Serialize)]

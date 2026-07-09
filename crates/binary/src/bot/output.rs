@@ -49,16 +49,17 @@ pub(crate) fn build_output_with_actions_and_memory(
             }
             ActionPlan::Build {
                 target,
-                building_kind,
+                building_spec_id,
             } => {
                 let target_position = Vec2I::new(target.x, target.y);
+                let building_spec_id = fbb.create_string(&building_spec_id);
                 Action::create(
                     &mut fbb,
                     &ActionArgs {
                         kind: ActionKind::Build,
                         actor_entity_id: planned_action.actor_id,
                         target_position: Some(&target_position),
-                        building_kind,
+                        building_spec_id: Some(building_spec_id),
                         ..Default::default()
                     },
                 )

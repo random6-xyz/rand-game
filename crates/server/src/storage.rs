@@ -64,18 +64,12 @@ pub fn save_world(world: &WorldState) -> Result<(), Box<dyn std::error::Error>> 
 }
 
 fn save_world_to_path(world: &WorldState, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    use std::collections::HashSet;
     let mut conn = open_connection_at(path)?;
     let tx = conn.transaction()?;
 
-    tx.execute("DELETE FROM world_meta", [])?;
-    tx.execute("DELETE FROM players", [])?;
-    tx.execute("DELETE FROM entities", [])?;
-    tx.execute("DELETE FROM entity_cargo", [])?;
-    tx.execute("DELETE FROM buildings", [])?;
-    tx.execute("DELETE FROM tile_overrides", [])?;
-
     tx.execute(
-        "INSERT INTO world_meta (id, world_seed, map_id, tick, observation_radius, next_id) VALUES (1, ?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO world_meta (id, world_seed, map_id, tick, observation_radius, next_id) VALUES (1, ?1, ?2, ?3, ?4, ?5) ON CONFLICT(id) DO UPDATE SET world_seed=excluded.world_seed, map_id=excluded.map_id, tick=excluded.tick, observation_radius=excluded.observation_radius, next_id=excluded.next_id",
         params![
             to_i64(world.world_seed)?,
             i64::from(world.map_id),
@@ -87,7 +81,7 @@ fn save_world_to_path(world: &WorldState, path: &Path) -> Result<(), Box<dyn std
 
     for player in world.players.values() {
         tx.execute(
-            "INSERT INTO players (id, core_entity_id, worker_entity_id, core_building_id, core_tier, bot_path, persistent_memory, researched_ids) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            "INSERT INTO players (id, core_entity_id, worker_entity_id, core_building_id, core_tier, bot_path, persistent_memory, researched_ids) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) ON CONFLICT(id) DO UPDATE SET core_entity_id=excluded.core_entity_id, worker_entity_id=excluded.worker_entity_id, core_building_id=excluded.core_building_id, core_tier=excluded.core_tier, bot_path=excluded.bot_path, persistent_memory=excluded.persistent_memory, researched_ids=excluded.researched_ids",
             params![
                 to_i64(player.id)?,
                 to_i64(player.core_entity_id)?,
@@ -100,16 +94,37 @@ fn save_world_to_path(world: &WorldState, path: &Path) -> Result<(), Box<dyn std
             ],
         )?;
     }
+    let player_ids: HashSet<i64> = world
+        .players
+        .keys()
+        .filter_map(|id| to_i64(*id).ok())
+        .collect();
+    if !player_ids.is_empty() {
+        let placeholders = player_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let sql = format!("DELETE FROM players WHERE id NOT IN ({placeholders})");
+        let mut stmt = tx.prepare(&sql)?;
+        let params: Vec<Box<dyn rusqlite::types::ToSql>> = player_ids
+            .iter()
+            .map(|id| Box::new(*id) as Box<dyn rusqlite::types::ToSql>)
+            .collect();
+        stmt.execute(rusqlite::params_from_iter(
+            params.iter().map(|p| p.as_ref()),
+        ))?;
+    }
 
     for entity in world.entities.values() {
         tx.execute(
-            "INSERT INTO entities (id, owner_id, x, y) VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO entities (id, owner_id, x, y) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(id) DO UPDATE SET owner_id=excluded.owner_id, x=excluded.x, y=excluded.y",
             params![
                 to_i64(entity.id)?,
                 to_i64(entity.owner_id)?,
                 entity.position.x,
                 entity.position.y,
             ],
+        )?;
+        tx.execute(
+            "DELETE FROM entity_cargo WHERE entity_id = ?1",
+            params![to_i64(entity.id)?],
         )?;
         for (idx, stack) in entity.cargo.iter().enumerate() {
             tx.execute(
@@ -123,13 +138,36 @@ fn save_world_to_path(world: &WorldState, path: &Path) -> Result<(), Box<dyn std
             )?;
         }
     }
+    let entity_ids: HashSet<i64> = world
+        .entities
+        .keys()
+        .filter_map(|id| to_i64(*id).ok())
+        .collect();
+    if !entity_ids.is_empty() {
+        let placeholders = entity_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let sql = format!("DELETE FROM entities WHERE id NOT IN ({placeholders})");
+        let mut stmt = tx.prepare(&sql)?;
+        let params: Vec<Box<dyn rusqlite::types::ToSql>> = entity_ids
+            .iter()
+            .map(|id| Box::new(*id) as Box<dyn rusqlite::types::ToSql>)
+            .collect();
+        stmt.execute(rusqlite::params_from_iter(
+            params.iter().map(|p| p.as_ref()),
+        ))?;
+        let sql_cargo = format!("DELETE FROM entity_cargo WHERE entity_id NOT IN ({placeholders})");
+        tx.execute(
+            &sql_cargo,
+            rusqlite::params_from_iter(params.iter().map(|p| p.as_ref())),
+        )?;
+    }
 
     for building in world.buildings.values() {
         tx.execute(
-            "INSERT INTO buildings (id, kind, owner_id, x, y, power) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO buildings (id, kind, spec_id, owner_id, x, y, power) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) ON CONFLICT(id) DO UPDATE SET kind=excluded.kind, spec_id=excluded.spec_id, owner_id=excluded.owner_id, x=excluded.x, y=excluded.y, power=excluded.power",
             params![
                 to_i64(building.id)?,
                 to_json(&building.kind)?,
+                &building.spec_id,
                 to_i64(building.owner_id)?,
                 building.position.x,
                 building.position.y,
@@ -137,7 +175,30 @@ fn save_world_to_path(world: &WorldState, path: &Path) -> Result<(), Box<dyn std
             ],
         )?;
     }
+    let building_ids: HashSet<i64> = world
+        .buildings
+        .keys()
+        .filter_map(|id| to_i64(*id).ok())
+        .collect();
+    if !building_ids.is_empty() {
+        let placeholders = building_ids
+            .iter()
+            .map(|_| "?")
+            .collect::<Vec<_>>()
+            .join(",");
+        let sql = format!("DELETE FROM buildings WHERE id NOT IN ({placeholders})");
+        let mut stmt = tx.prepare(&sql)?;
+        let params: Vec<Box<dyn rusqlite::types::ToSql>> = building_ids
+            .iter()
+            .map(|id| Box::new(*id) as Box<dyn rusqlite::types::ToSql>)
+            .collect();
+        stmt.execute(rusqlite::params_from_iter(
+            params.iter().map(|p| p.as_ref()),
+        ))?;
+    }
 
+    let override_positions: HashSet<(i32, i32)> =
+        world.tile_overrides().keys().map(|p| (p.x, p.y)).collect();
     for (position, override_tile) in world.tile_overrides() {
         let (resource_is_set, resource_kind, resource_amount) = match override_tile.resource {
             Some(Some(resource)) => (
@@ -154,7 +215,7 @@ fn save_world_to_path(world: &WorldState, path: &Path) -> Result<(), Box<dyn std
             None => (0_i64, None),
         };
         tx.execute(
-            "INSERT INTO tile_overrides (x, y, resource_is_set, resource_kind, resource_amount, owner_is_set, owner_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO tile_overrides (x, y, resource_is_set, resource_kind, resource_amount, owner_is_set, owner_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) ON CONFLICT(x,y) DO UPDATE SET resource_is_set=excluded.resource_is_set, resource_kind=excluded.resource_kind, resource_amount=excluded.resource_amount, owner_is_set=excluded.owner_is_set, owner_id=excluded.owner_id",
             params![
                 position.x,
                 position.y,
@@ -164,6 +225,24 @@ fn save_world_to_path(world: &WorldState, path: &Path) -> Result<(), Box<dyn std
                 owner_is_set,
                 owner_id,
             ],
+        )?;
+    }
+    if !override_positions.is_empty() {
+        let mut placeholders = Vec::with_capacity(override_positions.len());
+        let mut params: Vec<Box<dyn rusqlite::types::ToSql>> =
+            Vec::with_capacity(override_positions.len() * 2);
+        for (x, y) in &override_positions {
+            placeholders.push("(?,?)");
+            params.push(Box::new(*x));
+            params.push(Box::new(*y));
+        }
+        let sql = format!(
+            "DELETE FROM tile_overrides WHERE (x,y) NOT IN ({})",
+            placeholders.join(",")
+        );
+        tx.execute(
+            &sql,
+            rusqlite::params_from_iter(params.iter().map(|p| p.as_ref())),
         )?;
     }
 
@@ -181,12 +260,34 @@ fn save_action_log_to_path(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = open_connection_at(path)?;
     let tx = conn.transaction()?;
-    tx.execute("DELETE FROM action_log", [])?;
-    for (idx, entry) in action_log.entries().iter().enumerate() {
+
+    let max_saved_seq: i64 = tx
+        .query_row("SELECT COALESCE(MAX(seq), -1) FROM action_log", [], |row| {
+            row.get(0)
+        })
+        .unwrap_or(-1);
+
+    let entries = action_log.entries();
+    let total = entries.len();
+    if total == 0 {
+        tx.commit()?;
+        return Ok(());
+    }
+
+    let first_seq = 0_i64;
+    if first_seq > 0 {
+        tx.execute("DELETE FROM action_log WHERE seq < ?1", params![first_seq])?;
+    }
+
+    for (idx, entry) in entries.iter().enumerate() {
+        let seq = idx as i64;
+        if seq <= max_saved_seq {
+            continue;
+        }
         tx.execute(
             "INSERT INTO action_log (seq, tick, player_id, action_json, result, count) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
-                to_i64(idx as u64)?,
+                seq,
                 to_i64(entry.tick)?,
                 to_i64(entry.player_id)?,
                 to_json(&entry.action)?,
@@ -195,6 +296,7 @@ fn save_action_log_to_path(
             ],
         )?;
     }
+
     tx.commit()?;
     Ok(())
 }
@@ -321,25 +423,27 @@ fn load_world_from_path(path: &Path) -> Result<Option<WorldState>, Box<dyn std::
 
     let mut buildings = HashMap::new();
     let mut building_rows =
-        conn.prepare("SELECT id, kind, owner_id, x, y, power FROM buildings")?;
+        conn.prepare("SELECT id, kind, spec_id, owner_id, x, y, power FROM buildings")?;
     let building_iter = building_rows.query_map([], |row| {
         Ok((
             row.get::<_, i64>(0)?,
             row.get::<_, String>(1)?,
-            row.get::<_, i64>(2)?,
-            row.get::<_, i32>(3)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, i64>(3)?,
             row.get::<_, i32>(4)?,
             row.get::<_, i32>(5)?,
+            row.get::<_, i32>(6)?,
         ))
     })?;
     for building in building_iter {
-        let (id, kind_json, owner_id, x, y, power) = building?;
+        let (id, kind_json, spec_id, owner_id, x, y, power) = building?;
         let id = from_i64(id, "building id")?;
         buildings.insert(
             id,
             Building {
                 id,
                 kind: from_json::<BuildingKind>(&kind_json)?,
+                spec_id,
                 owner_id: from_i64(owner_id, "building owner id")?,
                 position: Position::new(x, y),
                 power,
@@ -487,6 +591,7 @@ fn ensure_schema(conn: &Connection) -> rusqlite::Result<()> {
         CREATE TABLE IF NOT EXISTS buildings (
             id INTEGER PRIMARY KEY,
             kind TEXT NOT NULL,
+            spec_id TEXT NOT NULL DEFAULT '',
             owner_id INTEGER NOT NULL,
             x INTEGER NOT NULL,
             y INTEGER NOT NULL,

@@ -1,4 +1,4 @@
-use rand_game_common::fb::{BuildingKind, ResourceKind};
+use rand_game_common::fb::ResourceKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct Position {
@@ -43,7 +43,7 @@ pub(crate) enum ActionPlan {
     #[allow(dead_code)]
     Build {
         target: Position,
-        building_kind: BuildingKind,
+        building_spec_id: String,
     },
     #[allow(dead_code)]
     Lift {

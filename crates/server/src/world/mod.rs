@@ -216,8 +216,9 @@ impl WorldState {
             ValidatedAction::Build {
                 actor_entity_id,
                 target,
-                building_kind,
-            } => self.apply_build(player_id, actor_entity_id, target, building_kind),
+                ref building_spec_id,
+                ref inputs,
+            } => self.apply_build(player_id, actor_entity_id, target, building_spec_id, inputs),
             ValidatedAction::Lift {
                 actor_entity_id,
                 kind,
@@ -299,23 +300,32 @@ impl WorldState {
         player_id: u64,
         actor_entity_id: u64,
         target: Position,
-        building_kind: BuildingKind,
+        spec_id: &str,
+        inputs: &[ItemStack],
     ) -> String {
         let building_id = self.alloc_id();
+        let kind = spec_id_to_building_kind(spec_id);
         self.buildings.insert(
             building_id,
             Building {
                 id: building_id,
-                kind: building_kind,
+                kind,
+                spec_id: spec_id.to_string(),
                 owner_id: player_id,
                 position: target,
                 power: 0,
             },
         );
 
+        if let Some(entity) = self.entities.get_mut(&actor_entity_id) {
+            for cost in inputs {
+                let _ = remove_cargo(entity, &cost.kind, cost.amount);
+            }
+        }
+
         format!(
-            "entity {actor_entity_id} built {:?} {} at ({}, {})",
-            building_kind, building_id, target.x, target.y
+            "entity {actor_entity_id} built {spec_id} {building_id} at ({}, {})",
+            target.x, target.y
         )
     }
 
@@ -475,6 +485,7 @@ impl WorldState {
             Building {
                 id: core_building_id,
                 kind: BuildingKind::None,
+                spec_id: "entity".to_string(),
                 owner_id: player_id,
                 position: core_position,
                 power: 25,
@@ -505,6 +516,20 @@ impl WorldState {
         self.buildings
             .values()
             .find(|building| building.position == position)
+    }
+}
+
+fn spec_id_to_building_kind(spec_id: &str) -> BuildingKind {
+    if spec_id.starts_with("min-") {
+        BuildingKind::Miner
+    } else if spec_id.starts_with("asm-") {
+        BuildingKind::Assembler
+    } else if spec_id.starts_with("fur-") {
+        BuildingKind::Furnace
+    } else if spec_id.starts_with("box-") {
+        BuildingKind::Storage
+    } else {
+        BuildingKind::None
     }
 }
 

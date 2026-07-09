@@ -1,7 +1,7 @@
 use rand_game_common::fb;
-use rand_game_common::rules::{ItemStackSpec, RecipeSpec, ResearchSpec, RuleCatalog};
+use rand_game_common::rules::{BuildingSpec, ItemStackSpec, RecipeSpec, ResearchSpec, RuleCatalog};
 
-use crate::model::{BuildingKind, ItemStack, Position, ResourceKind, ValidatedAction};
+use crate::model::{ItemStack, Position, ResourceKind, ValidatedAction};
 use crate::protocol;
 use crate::world::WorldState;
 
@@ -157,61 +157,74 @@ fn validate_build(
     }
     let near_owned_core = world.buildings.values().any(|building| {
         building.owner_id == player_id
-            && building.kind == crate::model::BuildingKind::None
+            && building.spec_id == "entity"
             && building.position.manhattan(target) <= rules.build_core_radius
     });
     if !near_owned_core {
         return Err("build target must be near owned core".into());
     }
-    let building_kind = protocol::to_model_building_kind(action.building_kind())
-        .ok_or("build action has invalid building kind")?;
-    if building_kind == crate::model::BuildingKind::None {
+    let spec_id = protocol::to_model_building_spec_id(&action)
+        .ok_or("build action requires building_spec_id")?;
+    if spec_id == "entity" {
         return Err("building another core is not allowed in MVP".into());
     }
-    validate_building_catalog_rule(building_kind, catalog)?;
+    let spec = validate_building_spec_exists(&spec_id, catalog)?;
+    let actor = world
+        .entities
+        .get(&action.actor_entity_id())
+        .ok_or("actor entity does not exist")?;
+    validate_build_costs(actor.cargo.as_slice(), spec)?;
 
     Ok(ValidatedAction::Build {
         actor_entity_id: action.actor_entity_id(),
         target,
-        building_kind,
+        building_spec_id: spec_id,
+        inputs: spec
+            .inputs
+            .iter()
+            .map(|stack| ItemStack {
+                kind: stack.kind.clone(),
+                amount: stack.amount,
+            })
+            .collect(),
     })
 }
 
-fn validate_building_catalog_rule(
-    building_kind: BuildingKind,
-    catalog: Option<&RuleCatalog>,
-) -> Result<(), String> {
-    let Some(catalog) = catalog else {
-        return Ok(());
-    };
-    let Some(spec_id) = default_building_spec_id(building_kind) else {
-        return Err(format!(
-            "building kind {building_kind:?} is not supported by YAML rules"
-        ));
-    };
+fn validate_building_spec_exists<'a>(
+    spec_id: &str,
+    catalog: Option<&'a RuleCatalog>,
+) -> Result<&'a BuildingSpec, String> {
+    let catalog = catalog.ok_or("build action requires rule catalog")?;
     let spec = catalog
         .buildings
         .buildings
         .iter()
         .find(|building| building.id == spec_id)
-        .ok_or_else(|| format!("YAML building spec `{spec_id}` is missing"))?;
+        .ok_or_else(|| format!("unknown building spec `{spec_id}`"))?;
     if spec.width != 1 {
         return Err(format!(
-            "YAML building spec `{spec_id}` has width {}, but multi-tile buildings are not supported yet",
+            "building spec `{spec_id}` has width {}, but multi-tile buildings are not supported yet",
             spec.width
         ));
     }
-    Ok(())
+    Ok(spec)
 }
 
-fn default_building_spec_id(building_kind: BuildingKind) -> Option<&'static str> {
-    match building_kind {
-        BuildingKind::Miner => Some("min-1"),
-        BuildingKind::Storage => Some("box-1"),
-        BuildingKind::Assembler => Some("asm-1"),
-        BuildingKind::Furnace => Some("fur-1"),
-        BuildingKind::None | BuildingKind::Solar => None,
+fn validate_build_costs(actor_cargo: &[ItemStack], spec: &BuildingSpec) -> Result<(), String> {
+    for input in &spec.inputs {
+        let available = actor_cargo
+            .iter()
+            .filter(|stack| stack.kind == input.kind)
+            .map(|stack| stack.amount)
+            .sum::<u32>();
+        if available < input.amount {
+            return Err(format!(
+                "building `{}` requires {} {} in actor cargo, but only {} available",
+                spec.id, input.amount, input.kind, available
+            ));
+        }
     }
+    Ok(())
 }
 
 fn required_target_position(action: fb::Action<'_>, kind: &str) -> Result<Position, String> {
@@ -352,12 +365,13 @@ fn validate_recipe_workplace(
     if building.owner_id != player_id {
         return Err("craft target building is not owned by player".into());
     }
-    let spec_id = default_building_spec_id(building.kind)
-        .ok_or("craft target building kind is not supported by YAML rules")?;
-    if !recipe.building.iter().any(|building| building == spec_id) {
+    if building.spec_id.is_empty() {
+        return Err("craft target building has no spec_id".into());
+    }
+    if !recipe.building.iter().any(|b| b == &building.spec_id) {
         return Err(format!(
-            "recipe `{}` cannot be crafted by building `{spec_id}`",
-            recipe.id
+            "recipe `{}` cannot be crafted by building `{}`",
+            recipe.id, building.spec_id
         ));
     }
 
@@ -512,7 +526,7 @@ fn validate_research(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Building, ItemStack};
+    use crate::model::{Building, BuildingKind, ItemStack};
     use rand_game_common::rules::default_rule_catalog;
     use rand_game_common::rules::{
         BuildingCatalog, BuildingSpec, RecipeCatalog, ResearchCatalog, RuleCatalog,
@@ -549,7 +563,7 @@ mod tests {
     fn build_validation_uses_yaml_catalog_when_enabled() {
         let world = WorldState::new();
         let player = world.players.get(&1).expect("player 1");
-        let action = build_action(player.worker_entity_id, fb::BuildingKind::Miner);
+        let action = build_action(player.worker_entity_id, "min-1");
         let catalog = catalog_with_building("min-1", 1);
 
         let validated = validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog))
@@ -562,12 +576,12 @@ mod tests {
     fn build_validation_rejects_missing_yaml_building() {
         let world = WorldState::new();
         let player = world.players.get(&1).expect("player 1");
-        let action = build_action(player.worker_entity_id, fb::BuildingKind::Miner);
+        let action = build_action(player.worker_entity_id, "min-1");
         let catalog = catalog_with_building("asm-1", 1);
 
         assert_eq!(
             validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog)),
-            Err("YAML building spec `min-1` is missing".into())
+            Err("unknown building spec `min-1`".into())
         );
     }
 
@@ -575,12 +589,15 @@ mod tests {
     fn build_validation_rejects_multi_tile_yaml_building() {
         let world = WorldState::new();
         let player = world.players.get(&1).expect("player 1");
-        let action = build_action(player.worker_entity_id, fb::BuildingKind::Miner);
+        let action = build_action(player.worker_entity_id, "min-1");
         let catalog = catalog_with_building("min-1", 2);
 
         assert_eq!(
             validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog)),
-            Err("YAML building spec `min-1` has width 2, but multi-tile buildings are not supported yet".into())
+            Err(
+                "building spec `min-1` has width 2, but multi-tile buildings are not supported yet"
+                    .into()
+            )
         );
     }
 
@@ -599,6 +616,7 @@ mod tests {
             Building {
                 id: 99,
                 kind: BuildingKind::Assembler,
+                spec_id: "asm-1".into(),
                 owner_id: 1,
                 position: Position::new(2, 0),
                 power: 0,
@@ -609,6 +627,7 @@ mod tests {
             Building {
                 id: 98,
                 kind: BuildingKind::Furnace,
+                spec_id: "fur-1".into(),
                 owner_id: 1,
                 position: Position::new(3, 0),
                 power: 0,
@@ -820,16 +839,17 @@ mod tests {
         assert!(matches!(validated, ValidatedAction::Craft { .. }));
     }
 
-    fn build_action(actor_entity_id: u64, building_kind: fb::BuildingKind) -> fb::Action<'static> {
+    fn build_action(actor_entity_id: u64, building_spec_id: &str) -> fb::Action<'static> {
         let mut fbb = flatbuffers::FlatBufferBuilder::new();
         let target = fb::Vec2I::new(2, 0);
+        let building_spec_id = fbb.create_string(building_spec_id);
         let action = fb::Action::create(
             &mut fbb,
             &fb::ActionArgs {
                 kind: fb::ActionKind::Build,
                 actor_entity_id,
                 target_position: Some(&target),
-                building_kind,
+                building_spec_id: Some(building_spec_id),
                 ..Default::default()
             },
         );
@@ -892,6 +912,7 @@ mod tests {
                         module_slot: Some(0),
                         width: 1,
                         capacity: None,
+                        inputs: vec![],
                     },
                     BuildingSpec {
                         name: id.into(),
@@ -904,6 +925,7 @@ mod tests {
                         module_slot: Some(0),
                         width,
                         capacity: None,
+                        inputs: vec![],
                     },
                 ],
             },

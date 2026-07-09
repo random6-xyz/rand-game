@@ -190,15 +190,11 @@ pub fn to_model_position(position: &Vec2I) -> model::Position {
     model::Position::new(position.x(), position.y())
 }
 
-pub fn to_model_building_kind(kind: fb::BuildingKind) -> Option<model::BuildingKind> {
-    match kind {
-        fb::BuildingKind::Miner => Some(model::BuildingKind::Miner),
-        fb::BuildingKind::Storage => Some(model::BuildingKind::Storage),
-        fb::BuildingKind::Solar => Some(model::BuildingKind::Solar),
-        fb::BuildingKind::Assembler => Some(model::BuildingKind::Assembler),
-        fb::BuildingKind::Furnace => Some(model::BuildingKind::Furnace),
-        _ => None,
-    }
+pub fn to_model_building_spec_id(action: &fb::Action<'_>) -> Option<String> {
+    action
+        .building_spec_id()
+        .filter(|id| !id.trim().is_empty())
+        .map(|id| id.to_string())
 }
 
 pub fn to_fb_resource_kind(kind: model::ResourceKind) -> fb::ResourceKind {

@@ -92,7 +92,8 @@ pub enum ValidatedAction {
     Build {
         actor_entity_id: u64,
         target: Position,
-        building_kind: BuildingKind,
+        building_spec_id: String,
+        inputs: Vec<ItemStack>,
     },
     Lift {
         actor_entity_id: u64,
@@ -122,6 +123,7 @@ pub enum ValidatedAction {
 pub struct Building {
     pub id: u64,
     pub kind: BuildingKind,
+    pub spec_id: String,
     pub owner_id: u64,
     pub position: Position,
     pub power: i32,
