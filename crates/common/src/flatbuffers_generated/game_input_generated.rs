@@ -438,6 +438,7 @@ impl<'a> GameInput<'a> {
   pub const VT_OBSERVATION: ::flatbuffers::VOffsetT = 8;
   pub const VT_PERSISTENT_MEMORY: ::flatbuffers::VOffsetT = 10;
   pub const VT_RUNTIME_LIMITS: ::flatbuffers::VOffsetT = 12;
+  pub const VT_RESEARCHED_RECIPE_IDS: ::flatbuffers::VOffsetT = 14;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -449,6 +450,7 @@ impl<'a> GameInput<'a> {
     args: &'args GameInputArgs<'args>
   ) -> ::flatbuffers::WIPOffset<GameInput<'bldr>> {
     let mut builder = GameInputBuilder::new(_fbb);
+    if let Some(x) = args.researched_recipe_ids { builder.add_researched_recipe_ids(x); }
     if let Some(x) = args.runtime_limits { builder.add_runtime_limits(x); }
     if let Some(x) = args.persistent_memory { builder.add_persistent_memory(x); }
     if let Some(x) = args.observation { builder.add_observation(x); }
@@ -493,6 +495,13 @@ impl<'a> GameInput<'a> {
     // which contains a valid value in this slot
     unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<RuntimeLimits>>(GameInput::VT_RUNTIME_LIMITS, None)}
   }
+  #[inline]
+  pub fn researched_recipe_ids(&self) -> Option<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>>>(GameInput::VT_RESEARCHED_RECIPE_IDS, None)}
+  }
 }
 
 impl ::flatbuffers::Verifiable for GameInput<'_> {
@@ -506,6 +515,7 @@ impl ::flatbuffers::Verifiable for GameInput<'_> {
      .visit_field::<::flatbuffers::ForwardsUOffset<Observation>>("observation", Self::VT_OBSERVATION, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, u8>>>("persistent_memory", Self::VT_PERSISTENT_MEMORY, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<RuntimeLimits>>("runtime_limits", Self::VT_RUNTIME_LIMITS, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<&'_ str>>>>("researched_recipe_ids", Self::VT_RESEARCHED_RECIPE_IDS, false)?
      .finish();
     Ok(())
   }
@@ -516,6 +526,7 @@ pub struct GameInputArgs<'a> {
     pub observation: Option<::flatbuffers::WIPOffset<Observation<'a>>>,
     pub persistent_memory: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, u8>>>,
     pub runtime_limits: Option<::flatbuffers::WIPOffset<RuntimeLimits<'a>>>,
+    pub researched_recipe_ids: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>>>,
 }
 impl<'a> Default for GameInputArgs<'a> {
   #[inline]
@@ -526,6 +537,7 @@ impl<'a> Default for GameInputArgs<'a> {
       observation: None,
       persistent_memory: None,
       runtime_limits: None,
+      researched_recipe_ids: None,
     }
   }
 }
@@ -556,6 +568,10 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> GameInputBuilder<'a, 'b, A> {
     self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<RuntimeLimits>>(GameInput::VT_RUNTIME_LIMITS, runtime_limits);
   }
   #[inline]
+  pub fn add_researched_recipe_ids(&mut self, researched_recipe_ids: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ::flatbuffers::ForwardsUOffset<&'b  str>>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(GameInput::VT_RESEARCHED_RECIPE_IDS, researched_recipe_ids);
+  }
+  #[inline]
   pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> GameInputBuilder<'a, 'b, A> {
     let start = _fbb.start_table();
     GameInputBuilder {
@@ -578,6 +594,7 @@ impl ::core::fmt::Debug for GameInput<'_> {
       ds.field("observation", &self.observation());
       ds.field("persistent_memory", &self.persistent_memory());
       ds.field("runtime_limits", &self.runtime_limits());
+      ds.field("researched_recipe_ids", &self.researched_recipe_ids());
       ds.finish()
   }
 }

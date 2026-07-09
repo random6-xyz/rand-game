@@ -13,16 +13,17 @@ extern crate alloc;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 pub const ENUM_MIN_ACTION_KIND: i8 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_ACTION_KIND: i8 = 5;
+pub const ENUM_MAX_ACTION_KIND: i8 = 6;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 #[allow(non_camel_case_types)]
-pub const ENUM_VALUES_ACTION_KIND: [ActionKind; 6] = [
+pub const ENUM_VALUES_ACTION_KIND: [ActionKind; 7] = [
   ActionKind::Move,
   ActionKind::Mine,
   ActionKind::Build,
   ActionKind::Lift,
   ActionKind::Put,
   ActionKind::Craft,
+  ActionKind::Research,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -36,9 +37,10 @@ impl ActionKind {
   pub const Lift: Self = Self(3);
   pub const Put: Self = Self(4);
   pub const Craft: Self = Self(5);
+  pub const Research: Self = Self(6);
 
   pub const ENUM_MIN: i8 = 0;
-  pub const ENUM_MAX: i8 = 5;
+  pub const ENUM_MAX: i8 = 6;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::Move,
     Self::Mine,
@@ -46,6 +48,7 @@ impl ActionKind {
     Self::Lift,
     Self::Put,
     Self::Craft,
+    Self::Research,
   ];
   /// Returns the variant's name or "" if unknown.
   pub fn variant_name(self) -> Option<&'static str> {
@@ -56,6 +59,7 @@ impl ActionKind {
       Self::Lift => Some("Lift"),
       Self::Put => Some("Put"),
       Self::Craft => Some("Craft"),
+      Self::Research => Some("Research"),
       _ => None,
     }
   }

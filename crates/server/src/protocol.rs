@@ -1,6 +1,7 @@
 use flatbuffers::FlatBufferBuilder;
 use rand_game_common::fb::{self, *};
 use rand_game_common::framing::{FrameKind, encode_frame};
+use rand_game_common::rules::RuleCatalog;
 
 use crate::model;
 use crate::rules::ServerRules;
@@ -11,8 +12,9 @@ pub fn build_game_input_frame(
     player_id: u64,
     rules: &ServerRules,
     debug_max_actions: Option<u32>,
+    catalog: &RuleCatalog,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let payload = build_game_input_payload(world, player_id, rules, debug_max_actions)?;
+    let payload = build_game_input_payload(world, player_id, rules, debug_max_actions, catalog)?;
     if !game_input_buffer_has_identifier(&payload) {
         return Err("generated payload is not a BWI1 GameInput flatbuffer".into());
     }
@@ -25,6 +27,7 @@ pub fn build_game_input_payload(
     player_id: u64,
     rules: &ServerRules,
     debug_max_actions: Option<u32>,
+    catalog: &RuleCatalog,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let owned_entities = world.owned_entities(player_id);
     let center = owned_entities
@@ -148,6 +151,25 @@ pub fn build_game_input_payload(
     );
     let persistent_memory = fbb.create_vector(world.player_persistent_memory(player_id));
 
+    let player = world.players.get(&player_id).ok_or("player not found")?;
+    let unlocked_recipe_ids: std::collections::HashSet<&str> = player
+        .researched_ids
+        .iter()
+        .flat_map(|research_id| {
+            catalog
+                .researches
+                .researches
+                .iter()
+                .filter(move |r| &r.id == research_id)
+                .flat_map(|r| r.unlocked_recipes.iter().map(|s| s.as_str()))
+        })
+        .collect();
+    let recipe_id_offsets: Vec<_> = unlocked_recipe_ids
+        .iter()
+        .map(|id| fbb.create_string(id))
+        .collect();
+    let researched_recipe_ids = fbb.create_vector(&recipe_id_offsets);
+
     let game_input = GameInput::create(
         &mut fbb,
         &GameInputArgs {
@@ -156,6 +178,7 @@ pub fn build_game_input_payload(
             observation: Some(observation),
             persistent_memory: Some(persistent_memory),
             runtime_limits: Some(runtime_limits),
+            researched_recipe_ids: Some(researched_recipe_ids),
         },
     );
 
@@ -212,6 +235,7 @@ fn to_fb_building_kind(kind: model::BuildingKind) -> fb::BuildingKind {
 mod tests {
     use rand_game_common::fb::{game_input_buffer_has_identifier, root_as_game_input};
     use rand_game_common::framing::{FrameKind, decode_frame};
+    use rand_game_common::rules::default_rule_catalog;
 
     use super::*;
 
@@ -219,7 +243,9 @@ mod tests {
     fn builds_valid_framed_game_input() {
         let world = WorldState::new();
         let rules = ServerRules::default();
-        let frame = build_game_input_frame(&world, 1, &rules, None).expect("build input frame");
+        let catalog = default_rule_catalog();
+        let frame =
+            build_game_input_frame(&world, 1, &rules, None, &catalog).expect("build input frame");
         let payload = decode_frame(&frame, FrameKind::GameInput).expect("decode frame");
 
         assert!(game_input_buffer_has_identifier(payload));
@@ -230,8 +256,9 @@ mod tests {
     fn debug_max_actions_overrides_runtime_profile() {
         let world = WorldState::new();
         let rules = ServerRules::default();
-        let payload =
-            build_game_input_payload(&world, 1, &rules, Some(1000)).expect("build input payload");
+        let catalog = default_rule_catalog();
+        let payload = build_game_input_payload(&world, 1, &rules, Some(1000), &catalog)
+            .expect("build input payload");
         let input = root_as_game_input(&payload).expect("valid game input");
         let limits = input.runtime_limits().expect("runtime limits");
         let action_limits = limits.action_limits().expect("action limits");
@@ -246,8 +273,9 @@ mod tests {
             ruleset_version: 7,
             ..ServerRules::default()
         };
-        let payload =
-            build_game_input_payload(&world, 1, &rules, None).expect("build input payload");
+        let catalog = default_rule_catalog();
+        let payload = build_game_input_payload(&world, 1, &rules, None, &catalog)
+            .expect("build input payload");
         let input = root_as_game_input(&payload).expect("valid game input");
 
         assert_eq!(input.world().expect("world").ruleset_version(), 7);

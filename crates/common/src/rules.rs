@@ -44,10 +44,24 @@ pub struct ItemStackSpec {
     pub amount: u32,
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct ResearchCatalog {
+    pub researches: Vec<ResearchSpec>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct ResearchSpec {
+    pub name: String,
+    pub id: String,
+    pub inputs: Vec<ItemStackSpec>,
+    pub unlocked_recipes: Vec<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct RuleCatalog {
     pub buildings: BuildingCatalog,
     pub recipes: RecipeCatalog,
+    pub researches: ResearchCatalog,
 }
 
 pub fn parse_building_catalog_str(input: &str) -> Result<BuildingCatalog, serde_yaml::Error> {
@@ -55,6 +69,10 @@ pub fn parse_building_catalog_str(input: &str) -> Result<BuildingCatalog, serde_
 }
 
 pub fn parse_recipe_catalog_str(input: &str) -> Result<RecipeCatalog, serde_yaml::Error> {
+    serde_yaml::from_str(input)
+}
+
+pub fn parse_research_catalog_str(input: &str) -> Result<ResearchCatalog, serde_yaml::Error> {
     serde_yaml::from_str(input)
 }
 
@@ -72,7 +90,8 @@ pub fn load_recipe_catalog_path(path: &Path) -> Result<RecipeCatalog, Box<dyn st
 
 pub fn validate_rule_catalog(catalog: &RuleCatalog) -> Result<(), String> {
     validate_building_catalog(&catalog.buildings)?;
-    validate_recipe_catalog(&catalog.recipes, &catalog.buildings)
+    validate_recipe_catalog(&catalog.recipes, &catalog.buildings)?;
+    validate_research_catalog(&catalog.researches, &catalog.recipes)
 }
 
 pub fn validate_building_catalog(catalog: &BuildingCatalog) -> Result<(), String> {
@@ -138,6 +157,43 @@ pub fn validate_recipe_catalog(
         validate_stacks(&recipe.id, "output", &recipe.outputs)?;
         if !ids.insert(recipe.id.as_str()) {
             return Err(format!("duplicate recipe id `{}`", recipe.id));
+        }
+    }
+    Ok(())
+}
+
+pub fn validate_research_catalog(
+    catalog: &ResearchCatalog,
+    recipes: &RecipeCatalog,
+) -> Result<(), String> {
+    let recipe_ids = recipes
+        .recipes
+        .iter()
+        .map(|recipe| recipe.id.as_str())
+        .collect::<HashSet<_>>();
+    let mut ids = HashSet::new();
+
+    for research in &catalog.researches {
+        validate_non_empty(&research.id, "research id")?;
+        validate_non_empty(&research.name, "research name")?;
+        if !ids.insert(research.id.as_str()) {
+            return Err(format!("duplicate research id `{}`", research.id));
+        }
+        validate_stacks(&research.id, "input", &research.inputs)?;
+        if research.unlocked_recipes.is_empty() {
+            return Err(format!(
+                "research `{}` must unlock at least one recipe",
+                research.id
+            ));
+        }
+        for recipe_id in &research.unlocked_recipes {
+            validate_non_empty(recipe_id, "unlocked recipe id")?;
+            if !recipe_ids.contains(recipe_id.as_str()) {
+                return Err(format!(
+                    "research `{}` unlocks unknown recipe `{recipe_id}`",
+                    research.id
+                ));
+            }
         }
     }
     Ok(())
@@ -211,7 +267,14 @@ recipes:
     fn parses_and_validates_catalogs() {
         let buildings = parse_building_catalog_str(BUILDING_YAML).expect("buildings");
         let recipes = parse_recipe_catalog_str(RECIPE_YAML).expect("recipes");
-        let catalog = RuleCatalog { buildings, recipes };
+        let researches = ResearchCatalog {
+            researches: Vec::new(),
+        };
+        let catalog = RuleCatalog {
+            buildings,
+            recipes,
+            researches,
+        };
 
         validate_rule_catalog(&catalog).expect("valid catalog");
         assert_eq!(catalog.buildings.buildings[1].id, "asm-1");
@@ -234,6 +297,9 @@ recipes:
 "#,
         )
         .expect("recipes");
+        let _researches = ResearchCatalog {
+            researches: Vec::new(),
+        };
 
         assert!(validate_recipe_catalog(&recipes, &buildings).is_err());
     }

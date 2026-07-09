@@ -123,7 +123,7 @@ Magic values:
 
 FlatBuffers schemas live in `crates/common/schema/*.fbs`. Generated Rust code is included under `crates/common/src/flatbuffers_generated/`.
 
-Current `GameInput` contains the protocol version, tick/map/ruleset information, visible tiles, owned entities, persistent memory, and runtime/action limits.
+Current `GameInput` contains the protocol version, tick/map/ruleset information, visible tiles, owned entities, persistent memory, runtime/action limits, and researched recipe IDs.
 
 Current `GameOutput` contains an action list and the next persistent memory value.
 
@@ -135,6 +135,7 @@ Supported actions:
 - `Lift`: move resources from the current tile into entity cargo
 - `Put`: move resources from entity cargo onto the current tile
 - `Craft`: craft a generated recipe by `recipe_id` from entity cargo, optionally using a compatible owned building
+- `Research`: research a technology by `research_id`, consuming inputs to unlock recipes
 
 ## World And Rules
 
@@ -150,7 +151,7 @@ Configuration files:
 
 - `config/server.env.toml`: `world_seed`, `map_id`
 - `config/server.rules.toml`: tick interval, observation radius, API query radius, upload limit, and per-core-tier runtime profiles
-- `config/building.yaml`, `config/recipe.yaml`: source YAML catalogs compiled into `rand-game-common` at build time. The server and sample bot use the same generated Rust catalog; recipe ids are validated by the server for `Craft` actions.
+- `config/building.yaml`, `config/recipe.yaml`, `config/research.yaml`: source YAML catalogs compiled into `rand-game-common` at build time. The server and sample bot use the same generated Rust catalog; recipe ids are validated by the server for `Craft` actions. Research technologies gate recipe availability; unresearched recipes are rejected.
 
 ## Crate Structure
 

@@ -105,6 +105,18 @@ pub(crate) fn build_output_with_actions_and_memory(
                     },
                 )
             }
+            ActionPlan::Research { research_id } => {
+                let research_id = fbb.create_string(&research_id);
+                Action::create(
+                    &mut fbb,
+                    &ActionArgs {
+                        kind: ActionKind::Research,
+                        actor_entity_id: planned_action.actor_id,
+                        recipe_id: Some(research_id),
+                        ..Default::default()
+                    },
+                )
+            }
         };
         action_offsets.push(action);
     }

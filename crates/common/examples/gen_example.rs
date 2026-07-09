@@ -166,6 +166,7 @@ fn build_game_input() -> Vec<u8> {
             observation: Some(observation),
             persistent_memory: Some(persistent_memory),
             runtime_limits: Some(runtime_limits),
+            researched_recipe_ids: None,
         },
     );
 

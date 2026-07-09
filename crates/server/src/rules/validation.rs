@@ -1,5 +1,5 @@
 use rand_game_common::fb;
-use rand_game_common::rules::{RecipeSpec, RuleCatalog};
+use rand_game_common::rules::{ItemStackSpec, RecipeSpec, ResearchSpec, RuleCatalog};
 
 use crate::model::{BuildingKind, ItemStack, Position, ResourceKind, ValidatedAction};
 use crate::protocol;
@@ -92,6 +92,7 @@ pub fn validate_action(
         fb::ActionKind::Lift => validate_lift(world, actor.position, action, rules),
         fb::ActionKind::Put => validate_put(actor.cargo.as_slice(), action),
         fb::ActionKind::Craft => validate_craft(world, player_id, action, catalog),
+        fb::ActionKind::Research => validate_research(world, player_id, action, catalog),
         other => Err(format!("unsupported action kind {other:?}")),
     }
 }
@@ -303,6 +304,7 @@ fn validate_craft(
     let target_building_id = validate_recipe_workplace(world, player_id, action, recipe)?;
     validate_recipe_inputs(actor.cargo.as_slice(), recipe)?;
     validate_recipe_outputs(actor.cargo.as_slice(), recipe)?;
+    validate_recipe_researched(world, player_id, recipe, catalog)?;
 
     Ok(ValidatedAction::Craft {
         actor_entity_id: action.actor_entity_id(),
@@ -362,8 +364,57 @@ fn validate_recipe_workplace(
     Ok(Some(target_building_id))
 }
 
-fn validate_recipe_inputs(actor_cargo: &[ItemStack], recipe: &RecipeSpec) -> Result<(), String> {
-    for input in &recipe.inputs {
+fn validate_recipe_researched(
+    world: &WorldState,
+    player_id: u64,
+    recipe: &RecipeSpec,
+    catalog: &RuleCatalog,
+) -> Result<(), String> {
+    let player = world
+        .players
+        .get(&player_id)
+        .ok_or("player does not exist")?;
+    for research in &catalog.researches.researches {
+        if research.unlocked_recipes.iter().any(|id| id == &recipe.id)
+            && !player.researched_ids.contains(&research.id)
+        {
+            return Err(format!(
+                "recipe `{}` requires researching `{}` first",
+                recipe.id, research.id
+            ));
+        }
+    }
+    Ok(())
+}
+
+trait RecipeSpecRef {
+    fn id(&self) -> &str;
+    fn inputs(&self) -> &[ItemStackSpec];
+}
+
+impl RecipeSpecRef for RecipeSpec {
+    fn id(&self) -> &str {
+        &self.id
+    }
+    fn inputs(&self) -> &[ItemStackSpec] {
+        &self.inputs
+    }
+}
+
+impl RecipeSpecRef for ResearchSpec {
+    fn id(&self) -> &str {
+        &self.id
+    }
+    fn inputs(&self) -> &[ItemStackSpec] {
+        &self.inputs
+    }
+}
+
+fn validate_recipe_inputs(
+    actor_cargo: &[ItemStack],
+    spec: &dyn RecipeSpecRef,
+) -> Result<(), String> {
+    for input in spec.inputs() {
         let available = actor_cargo
             .iter()
             .filter(|stack| stack.kind == input.kind)
@@ -371,8 +422,11 @@ fn validate_recipe_inputs(actor_cargo: &[ItemStack], recipe: &RecipeSpec) -> Res
             .sum::<u32>();
         if available < input.amount {
             return Err(format!(
-                "recipe `{}` requires {} {}, but actor cargo has {}",
-                recipe.id, input.amount, input.kind, available
+                "`{}` requires {} {}, but actor cargo has {}",
+                spec.id(),
+                input.amount,
+                input.kind,
+                available
             ));
         }
     }
@@ -408,13 +462,61 @@ fn to_model_resource_kind(kind: fb::ResourceKind) -> Option<ResourceKind> {
     }
 }
 
+fn validate_research(
+    world: &WorldState,
+    player_id: u64,
+    action: fb::Action<'_>,
+    catalog: Option<&RuleCatalog>,
+) -> Result<ValidatedAction, String> {
+    let catalog = catalog.ok_or("research action requires rule catalog")?;
+    let research_id = action
+        .recipe_id()
+        .filter(|id| !id.trim().is_empty())
+        .ok_or("research action requires research_id")?;
+    let research = catalog
+        .researches
+        .researches
+        .iter()
+        .find(|r| r.id == research_id)
+        .ok_or_else(|| format!("unknown research `{research_id}`"))?;
+    let actor = world
+        .entities
+        .get(&action.actor_entity_id())
+        .ok_or("actor entity does not exist")?;
+    if actor.owner_id != player_id {
+        return Err("actor entity is not owned by player".into());
+    }
+    let player = world
+        .players
+        .get(&player_id)
+        .ok_or("player does not exist")?;
+    if player.researched_ids.contains(research_id) {
+        return Err(format!("research `{research_id}` is already researched"));
+    }
+    validate_recipe_inputs(actor.cargo.as_slice(), research)?;
+
+    Ok(ValidatedAction::Research {
+        actor_entity_id: action.actor_entity_id(),
+        research_id: research.id.clone(),
+        inputs: research
+            .inputs
+            .iter()
+            .map(|stack| ItemStack {
+                kind: stack.kind.clone(),
+                amount: stack.amount,
+            })
+            .collect(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::{Building, ItemStack};
     use rand_game_common::rules::default_rule_catalog;
     use rand_game_common::rules::{
-        BuildingCatalog, BuildingSpec, RecipeCatalog, RuleCatalog, validate_rule_catalog,
+        BuildingCatalog, BuildingSpec, RecipeCatalog, ResearchCatalog, RuleCatalog,
+        validate_rule_catalog,
     };
 
     #[test]
@@ -486,6 +588,10 @@ mod tests {
     fn craft_validation_accepts_all_generated_recipes_with_inputs() {
         let mut world = WorldState::new();
         let catalog = default_rule_catalog();
+        let player = world.players.get_mut(&1).expect("player 1");
+        for research in &catalog.researches.researches {
+            player.researched_ids.insert(research.id.clone());
+        }
         let player = world.players.get(&1).expect("player 1");
         let actor_id = player.worker_entity_id;
         world.buildings.insert(
@@ -563,8 +669,155 @@ mod tests {
 
         assert_eq!(
             validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog)),
-            Err("recipe `iron-plate` requires 1 iron-ore, but actor cargo has 0".into())
+            Err("`iron-plate` requires 1 iron-ore, but actor cargo has 0".into())
         );
+    }
+
+    #[test]
+    fn research_validation_accepts_valid_research() {
+        let mut world = WorldState::new();
+        let catalog = default_rule_catalog();
+        let player = world.players.get(&1).expect("player 1");
+        let actor_id = player.worker_entity_id;
+        let actor = world.entities.get_mut(&actor_id).expect("actor");
+        actor.cargo = vec![ItemStack {
+            kind: "iron-ore".into(),
+            amount: 10,
+        }];
+        let action = research_action(actor_id, "basic-smelting");
+
+        let validated = validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog))
+            .expect("valid research");
+
+        match validated {
+            ValidatedAction::Research {
+                actor_entity_id,
+                ref research_id,
+                ref inputs,
+            } => {
+                assert_eq!(actor_entity_id, actor_id);
+                assert_eq!(research_id, "basic-smelting");
+                assert_eq!(inputs.len(), 1);
+                assert_eq!(inputs[0].kind, "iron-ore");
+                assert_eq!(inputs[0].amount, 10);
+            }
+            _ => panic!("expected Research action"),
+        }
+    }
+
+    #[test]
+    fn research_validation_rejects_already_researched() {
+        let mut world = WorldState::new();
+        let catalog = default_rule_catalog();
+        let player = world.players.get_mut(&1).expect("player 1");
+        player.researched_ids.insert("basic-smelting".to_string());
+        let player = world.players.get(&1).expect("player 1");
+        let actor_id = player.worker_entity_id;
+        let actor = world.entities.get_mut(&actor_id).expect("actor");
+        actor.cargo = vec![ItemStack {
+            kind: "iron-ore".into(),
+            amount: 10,
+        }];
+        let action = research_action(actor_id, "basic-smelting");
+
+        assert_eq!(
+            validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog)),
+            Err("research `basic-smelting` is already researched".into())
+        );
+    }
+
+    #[test]
+    fn research_validation_rejects_missing_inputs() {
+        let world = WorldState::new();
+        let catalog = default_rule_catalog();
+        let player = world.players.get(&1).expect("player 1");
+        let action = research_action(player.worker_entity_id, "basic-smelting");
+
+        assert_eq!(
+            validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog)),
+            Err("`basic-smelting` requires 10 iron-ore, but actor cargo has 0".into())
+        );
+    }
+
+    #[test]
+    fn research_validation_rejects_unknown_research() {
+        let world = WorldState::new();
+        let catalog = default_rule_catalog();
+        let player = world.players.get(&1).expect("player 1");
+        let action = research_action(player.worker_entity_id, "missing");
+
+        assert_eq!(
+            validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog)),
+            Err("unknown research `missing`".into())
+        );
+    }
+
+    #[test]
+    fn research_validation_requires_catalog() {
+        let world = WorldState::new();
+        let player = world.players.get(&1).expect("player 1");
+        let action = research_action(player.worker_entity_id, "basic-smelting");
+
+        assert_eq!(
+            validate_action(&world, 1, action, &ServerRules::default(), None),
+            Err("research action requires rule catalog".into())
+        );
+    }
+
+    #[test]
+    fn craft_validation_rejects_unresearched_recipe() {
+        let mut world = WorldState::new();
+        let catalog = default_rule_catalog();
+        let player = world.players.get(&1).expect("player 1");
+        let actor_id = player.worker_entity_id;
+        let actor = world.entities.get_mut(&actor_id).expect("actor");
+        actor.cargo = vec![
+            ItemStack {
+                kind: "iron-plate".into(),
+                amount: 1,
+            },
+            ItemStack {
+                kind: "copper-wire".into(),
+                amount: 3,
+            },
+        ];
+        let action = craft_action(actor_id, "basic-circuit", 0);
+
+        assert_eq!(
+            validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog)),
+            Err(
+                "recipe `basic-circuit` requires researching `advanced-manufacturing` first".into()
+            )
+        );
+    }
+
+    #[test]
+    fn craft_validation_accepts_after_research() {
+        let mut world = WorldState::new();
+        let catalog = default_rule_catalog();
+        let player = world.players.get_mut(&1).expect("player 1");
+        player
+            .researched_ids
+            .insert("advanced-manufacturing".to_string());
+        let player = world.players.get(&1).expect("player 1");
+        let actor_id = player.worker_entity_id;
+        let actor = world.entities.get_mut(&actor_id).expect("actor");
+        actor.cargo = vec![
+            ItemStack {
+                kind: "iron-plate".into(),
+                amount: 1,
+            },
+            ItemStack {
+                kind: "copper-wire".into(),
+                amount: 3,
+            },
+        ];
+        let action = craft_action(actor_id, "basic-circuit", 0);
+
+        let validated = validate_action(&world, 1, action, &ServerRules::default(), Some(&catalog))
+            .expect("valid craft after research");
+
+        assert!(matches!(validated, ValidatedAction::Craft { .. }));
     }
 
     fn build_action(actor_entity_id: u64, building_kind: fb::BuildingKind) -> fb::Action<'static> {
@@ -607,6 +860,23 @@ mod tests {
         flatbuffers::root::<fb::Action<'static>>(data).expect("action")
     }
 
+    fn research_action(actor_entity_id: u64, research_id: &str) -> fb::Action<'static> {
+        let mut fbb = flatbuffers::FlatBufferBuilder::new();
+        let research_id = fbb.create_string(research_id);
+        let action = fb::Action::create(
+            &mut fbb,
+            &fb::ActionArgs {
+                kind: fb::ActionKind::Research,
+                actor_entity_id,
+                recipe_id: Some(research_id),
+                ..Default::default()
+            },
+        );
+        fbb.finish_minimal(action);
+        let data = fbb.finished_data().to_vec().leak();
+        flatbuffers::root::<fb::Action<'static>>(data).expect("action")
+    }
+
     fn catalog_with_building(id: &str, width: u32) -> RuleCatalog {
         let catalog = RuleCatalog {
             buildings: BuildingCatalog {
@@ -639,6 +909,9 @@ mod tests {
             },
             recipes: RecipeCatalog {
                 recipes: Vec::new(),
+            },
+            researches: ResearchCatalog {
+                researches: Vec::new(),
             },
         };
         validate_rule_catalog(&catalog).expect("valid catalog");
