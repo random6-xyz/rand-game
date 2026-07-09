@@ -283,15 +283,16 @@ impl ::flatbuffers::SimpleToVerifyInSlice for ResourceKind {}
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 pub const ENUM_MIN_BUILDING_KIND: i8 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_BUILDING_KIND: i8 = 4;
+pub const ENUM_MAX_BUILDING_KIND: i8 = 5;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 #[allow(non_camel_case_types)]
-pub const ENUM_VALUES_BUILDING_KIND: [BuildingKind; 5] = [
+pub const ENUM_VALUES_BUILDING_KIND: [BuildingKind; 6] = [
   BuildingKind::None,
   BuildingKind::Miner,
   BuildingKind::Storage,
   BuildingKind::Solar,
   BuildingKind::Assembler,
+  BuildingKind::Furnace,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -304,15 +305,17 @@ impl BuildingKind {
   pub const Storage: Self = Self(2);
   pub const Solar: Self = Self(3);
   pub const Assembler: Self = Self(4);
+  pub const Furnace: Self = Self(5);
 
   pub const ENUM_MIN: i8 = 0;
-  pub const ENUM_MAX: i8 = 4;
+  pub const ENUM_MAX: i8 = 5;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::None,
     Self::Miner,
     Self::Storage,
     Self::Solar,
     Self::Assembler,
+    Self::Furnace,
   ];
   /// Returns the variant's name or "" if unknown.
   pub fn variant_name(self) -> Option<&'static str> {
@@ -322,6 +325,7 @@ impl BuildingKind {
       Self::Storage => Some("Storage"),
       Self::Solar => Some("Solar"),
       Self::Assembler => Some("Assembler"),
+      Self::Furnace => Some("Furnace"),
       _ => None,
     }
   }
