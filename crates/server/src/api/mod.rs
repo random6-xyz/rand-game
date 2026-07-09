@@ -133,7 +133,7 @@ async fn action_log(
 ) -> Json<ActionLogResponse> {
     let page_size = state.inner().config.rules.action_log_page_size.max(1);
     let limit = query.limit.unwrap_or(page_size).clamp(1, page_size * 10);
-    let offset = query.offset.unwrap_or(0).max(0);
+    let offset = query.offset.unwrap_or(0);
     let action_log = state.inner().action_log.lock().await;
     let entries = action_log.entries();
     let total = entries.len();
