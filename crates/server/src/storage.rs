@@ -116,7 +116,7 @@ fn save_world_to_path(world: &WorldState, path: &Path) -> Result<(), Box<dyn std
                 params![
                     to_i64(entity.id)?,
                     to_i64(idx as u64)?,
-                    stack.kind,
+                    &stack.kind,
                     i64::from(stack.amount)
                 ],
             )?;
@@ -189,7 +189,7 @@ fn save_action_log_to_path(
                 to_i64(entry.tick)?,
                 to_i64(entry.player_id)?,
                 to_json(&entry.action)?,
-                entry.result,
+                &entry.result,
                 to_i64(entry.count)?,
             ],
         )?;
@@ -265,6 +265,31 @@ fn load_world_from_path(path: &Path) -> Result<Option<WorldState>, Box<dyn std::
         );
     }
 
+    let mut cargo_by_entity: HashMap<u64, Vec<ItemStack>> = HashMap::new();
+    {
+        let mut cargo_rows = conn.prepare(
+            "SELECT entity_id, kind, amount FROM entity_cargo ORDER BY entity_id, idx ASC",
+        )?;
+        let cargo_iter = cargo_rows.query_map([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
+        })?;
+        for cargo in cargo_iter {
+            let (entity_id, kind, amount) = cargo?;
+            let entity_id = from_i64(entity_id, "cargo entity id")?;
+            cargo_by_entity
+                .entry(entity_id)
+                .or_default()
+                .push(ItemStack {
+                    kind,
+                    amount: from_i64_to_u32(amount, "cargo amount")?,
+                });
+        }
+    }
+
     let mut entities = HashMap::new();
     let mut entity_rows = conn.prepare("SELECT id, owner_id, x, y FROM entities")?;
     let entity_iter = entity_rows.query_map([], |row| {
@@ -284,7 +309,7 @@ fn load_world_from_path(path: &Path) -> Result<Option<WorldState>, Box<dyn std::
                 id,
                 owner_id: from_i64(owner_id, "entity owner id")?,
                 position: Position::new(x, y),
-                cargo: load_entity_cargo(&conn, id)?,
+                cargo: cargo_by_entity.remove(&id).unwrap_or_default(),
             },
         );
     }
@@ -370,27 +395,6 @@ fn load_world_from_path(path: &Path) -> Result<Option<WorldState>, Box<dyn std::
     })))
 }
 
-fn load_entity_cargo(
-    conn: &Connection,
-    entity_id: u64,
-) -> Result<Vec<ItemStack>, Box<dyn std::error::Error>> {
-    let mut rows = conn
-        .prepare("SELECT kind, amount FROM entity_cargo WHERE entity_id = ?1 ORDER BY idx ASC")?;
-    let iter = rows.query_map(params![to_i64(entity_id)?], |row| {
-        Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
-    })?;
-
-    let mut cargo = Vec::new();
-    for stack in iter {
-        let (kind, amount) = stack?;
-        cargo.push(ItemStack {
-            kind,
-            amount: from_i64_to_u32(amount, "cargo amount")?,
-        });
-    }
-    Ok(cargo)
-}
-
 fn load_action_log() -> Result<ActionLog, Box<dyn std::error::Error>> {
     load_action_log_from_path(Path::new(DB_PATH))
 }
@@ -436,6 +440,8 @@ fn open_connection_at(path: &Path) -> Result<Connection, Box<dyn std::error::Err
 fn ensure_schema(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(
         "
+        PRAGMA journal_mode = WAL;
+        PRAGMA busy_timeout = 5000;
         PRAGMA foreign_keys = ON;
 
         CREATE TABLE IF NOT EXISTS world_meta (
@@ -629,9 +635,6 @@ mod tests {
     fn cleanup(path: &std::path::Path) {
         if let Some(dir) = path.parent() {
             let _ = std::fs::remove_dir_all(dir);
-            if let Some(parent) = dir.parent() {
-                let _ = std::fs::remove_dir(parent);
-            }
         }
     }
 }
