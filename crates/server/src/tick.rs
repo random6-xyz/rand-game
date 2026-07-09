@@ -42,20 +42,23 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
         let Some(bot_path) = bot_path else {
             return Ok(());
         };
+        let profile = world
+            .player_runtime_profile_with_rules(player_id, &state.inner().config.rules)
+            .ok_or("player has no runtime profile")?;
         let input_frame = protocol::build_game_input_frame(
             &world,
             player_id,
             &state.inner().config.rules,
             state.inner().config.debug_max_actions,
         )?;
-        Some((player_id, bot_path, world.tick, input_frame))
+        Some((player_id, bot_path, world.tick, profile, input_frame))
     };
 
-    let Some((player_id, bot_path, tick, input_frame)) = run_request else {
+    let Some((player_id, bot_path, tick, profile, input_frame)) = run_request else {
         return Ok(());
     };
 
-    let bot_result = runner::run_bot(&bot_path, &input_frame)?;
+    let bot_result = runner::run_bot(&bot_path, &input_frame, &profile)?;
     if !bot_result.stderr.trim().is_empty() {
         let event = BotStderrEvent {
             tick,
