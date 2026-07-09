@@ -39,7 +39,7 @@ pub struct ServerConfig {
 
 impl SharedState {
     pub fn new(world: WorldState, action_log: ActionLog, config: ServerConfig) -> Self {
-        let (bot_stderr, _) = broadcast::channel(128);
+        let (bot_stderr, _) = broadcast::channel(config.rules.bot_stderr_channel_capacity.max(1));
         Self {
             inner: Arc::new(ServerState {
                 world: Mutex::new(world),

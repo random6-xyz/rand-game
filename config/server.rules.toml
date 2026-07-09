@@ -8,6 +8,9 @@ max_debug_map_view_radius = 128
 default_world_radius = 4
 max_bot_upload_bytes = 16777216
 build_core_radius = 4
+bot_stderr_channel_capacity = 128
+max_action_log_entries = 10000
+action_log_page_size = 100
 
 [basic_core]
 run_interval_ticks = 5

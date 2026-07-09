@@ -42,6 +42,13 @@ impl ActionLog {
     pub fn len(&self) -> usize {
         self.entries.len()
     }
+
+    pub fn trim_to(&mut self, max_entries: usize) {
+        if self.entries.len() > max_entries {
+            let drain_count = self.entries.len() - max_entries;
+            self.entries.drain(0..drain_count);
+        }
+    }
 }
 
 impl ActionLogEntry {

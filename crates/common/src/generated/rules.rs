@@ -22,6 +22,7 @@ pub fn default_rule_catalog() -> RuleCatalog {
                     module_slot: Some(0),
                     width: 1,
                     capacity: None,
+                    inputs: vec![],
                 },
                 BuildingSpec {
                     name: "Assembly Machine 1".into(),
@@ -34,6 +35,16 @@ pub fn default_rule_catalog() -> RuleCatalog {
                     module_slot: Some(2),
                     width: 1,
                     capacity: None,
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 5,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-gear".into(),
+                            amount: 3,
+                        },
+                    ],
                 },
                 BuildingSpec {
                     name: "Assembly Machine 2".into(),
@@ -46,6 +57,20 @@ pub fn default_rule_catalog() -> RuleCatalog {
                     module_slot: Some(4),
                     width: 2,
                     capacity: None,
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 10,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-gear".into(),
+                            amount: 6,
+                        },
+                        ItemStackSpec {
+                            kind: "basic-circuit".into(),
+                            amount: 2,
+                        },
+                    ],
                 },
                 BuildingSpec {
                     name: "Assembly Machine 3".into(),
@@ -58,6 +83,24 @@ pub fn default_rule_catalog() -> RuleCatalog {
                     module_slot: Some(6),
                     width: 3,
                     capacity: None,
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 20,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-gear".into(),
+                            amount: 12,
+                        },
+                        ItemStackSpec {
+                            kind: "basic-circuit".into(),
+                            amount: 5,
+                        },
+                        ItemStackSpec {
+                            kind: "advanced-circuit".into(),
+                            amount: 2,
+                        },
+                    ],
                 },
                 BuildingSpec {
                     name: "Miner 1".into(),
@@ -70,6 +113,16 @@ pub fn default_rule_catalog() -> RuleCatalog {
                     module_slot: Some(2),
                     width: 1,
                     capacity: None,
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 3,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-gear".into(),
+                            amount: 2,
+                        },
+                    ],
                 },
                 BuildingSpec {
                     name: "Miner 2".into(),
@@ -82,6 +135,20 @@ pub fn default_rule_catalog() -> RuleCatalog {
                     module_slot: Some(4),
                     width: 2,
                     capacity: None,
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 8,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-gear".into(),
+                            amount: 4,
+                        },
+                        ItemStackSpec {
+                            kind: "basic-circuit".into(),
+                            amount: 1,
+                        },
+                    ],
                 },
                 BuildingSpec {
                     name: "Miner 3".into(),
@@ -94,6 +161,24 @@ pub fn default_rule_catalog() -> RuleCatalog {
                     module_slot: Some(6),
                     width: 3,
                     capacity: None,
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 15,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-gear".into(),
+                            amount: 8,
+                        },
+                        ItemStackSpec {
+                            kind: "basic-circuit".into(),
+                            amount: 3,
+                        },
+                        ItemStackSpec {
+                            kind: "advanced-circuit".into(),
+                            amount: 1,
+                        },
+                    ],
                 },
                 BuildingSpec {
                     name: "Furnace 1".into(),
@@ -106,6 +191,16 @@ pub fn default_rule_catalog() -> RuleCatalog {
                     module_slot: Some(2),
                     width: 1,
                     capacity: None,
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "stone".into(),
+                            amount: 5,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 2,
+                        },
+                    ],
                 },
                 BuildingSpec {
                     name: "Furnace 2".into(),
@@ -118,6 +213,20 @@ pub fn default_rule_catalog() -> RuleCatalog {
                     module_slot: Some(4),
                     width: 2,
                     capacity: None,
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "stone".into(),
+                            amount: 10,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 5,
+                        },
+                        ItemStackSpec {
+                            kind: "basic-circuit".into(),
+                            amount: 1,
+                        },
+                    ],
                 },
                 BuildingSpec {
                     name: "Furnace 3".into(),
@@ -130,6 +239,24 @@ pub fn default_rule_catalog() -> RuleCatalog {
                     module_slot: Some(6),
                     width: 3,
                     capacity: None,
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "stone".into(),
+                            amount: 20,
+                        },
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 10,
+                        },
+                        ItemStackSpec {
+                            kind: "basic-circuit".into(),
+                            amount: 3,
+                        },
+                        ItemStackSpec {
+                            kind: "advanced-circuit".into(),
+                            amount: 1,
+                        },
+                    ],
                 },
                 BuildingSpec {
                     name: "Box 1".into(),
@@ -142,6 +269,10 @@ pub fn default_rule_catalog() -> RuleCatalog {
                     module_slot: None,
                     width: 1,
                     capacity: Some(100),
+                    inputs: vec![ItemStackSpec {
+                        kind: "iron-plate".into(),
+                        amount: 2,
+                    }],
                 },
                 BuildingSpec {
                     name: "Box 2".into(),
@@ -154,6 +285,16 @@ pub fn default_rule_catalog() -> RuleCatalog {
                     module_slot: None,
                     width: 2,
                     capacity: Some(500),
+                    inputs: vec![
+                        ItemStackSpec {
+                            kind: "iron-plate".into(),
+                            amount: 6,
+                        },
+                        ItemStackSpec {
+                            kind: "basic-circuit".into(),
+                            amount: 1,
+                        },
+                    ],
                 },
             ],
         },

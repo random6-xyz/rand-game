@@ -19,7 +19,7 @@ table Action {
   target_building_id:ulong;
   target_position:Vec2I;
   resource:ResourceStack;
-  building_kind:BuildingKind;
+  building_spec_id:string;
   amount:uint;
   recipe_id:string;
 }

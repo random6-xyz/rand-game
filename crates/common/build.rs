@@ -20,6 +20,8 @@ struct BuildingSpec {
     module_slot: Option<u32>,
     width: u32,
     capacity: Option<u32>,
+    #[serde(default)]
+    inputs: Vec<ItemStackSpec>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -125,6 +127,7 @@ fn generate_rules(
         push_option_u32(&mut output, "module_slot", building.module_slot, 16);
         output.push_str(&format!("                width: {},\n", building.width));
         push_option_u32(&mut output, "capacity", building.capacity, 16);
+        push_stack_vec(&mut output, "inputs", &building.inputs, 16);
         output.push_str("            },\n");
     }
     output.push_str("        ] },\n");

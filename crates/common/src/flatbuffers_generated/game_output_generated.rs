@@ -136,7 +136,7 @@ impl<'a> Action<'a> {
   pub const VT_TARGET_BUILDING_ID: ::flatbuffers::VOffsetT = 10;
   pub const VT_TARGET_POSITION: ::flatbuffers::VOffsetT = 12;
   pub const VT_RESOURCE: ::flatbuffers::VOffsetT = 14;
-  pub const VT_BUILDING_KIND: ::flatbuffers::VOffsetT = 16;
+  pub const VT_BUILDING_SPEC_ID: ::flatbuffers::VOffsetT = 16;
   pub const VT_AMOUNT: ::flatbuffers::VOffsetT = 18;
   pub const VT_RECIPE_ID: ::flatbuffers::VOffsetT = 20;
 
@@ -155,9 +155,9 @@ impl<'a> Action<'a> {
     builder.add_actor_entity_id(args.actor_entity_id);
     if let Some(x) = args.recipe_id { builder.add_recipe_id(x); }
     builder.add_amount(args.amount);
+    if let Some(x) = args.building_spec_id { builder.add_building_spec_id(x); }
     if let Some(x) = args.resource { builder.add_resource(x); }
     if let Some(x) = args.target_position { builder.add_target_position(x); }
-    builder.add_building_kind(args.building_kind);
     builder.add_kind(args.kind);
     builder.finish()
   }
@@ -206,11 +206,11 @@ impl<'a> Action<'a> {
     unsafe { self._tab.get::<ResourceStack>(Action::VT_RESOURCE, None)}
   }
   #[inline]
-  pub fn building_kind(&self) -> BuildingKind {
+  pub fn building_spec_id(&self) -> Option<&'a str> {
     // Safety:
     // Created from valid Table for this object
     // which contains a valid value in this slot
-    unsafe { self._tab.get::<BuildingKind>(Action::VT_BUILDING_KIND, Some(BuildingKind::None)).unwrap()}
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(Action::VT_BUILDING_SPEC_ID, None)}
   }
   #[inline]
   pub fn amount(&self) -> u32 {
@@ -240,7 +240,7 @@ impl ::flatbuffers::Verifiable for Action<'_> {
      .visit_field::<u64>("target_building_id", Self::VT_TARGET_BUILDING_ID, false)?
      .visit_field::<Vec2I>("target_position", Self::VT_TARGET_POSITION, false)?
      .visit_field::<ResourceStack>("resource", Self::VT_RESOURCE, false)?
-     .visit_field::<BuildingKind>("building_kind", Self::VT_BUILDING_KIND, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("building_spec_id", Self::VT_BUILDING_SPEC_ID, false)?
      .visit_field::<u32>("amount", Self::VT_AMOUNT, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("recipe_id", Self::VT_RECIPE_ID, false)?
      .finish();
@@ -254,7 +254,7 @@ pub struct ActionArgs<'a> {
     pub target_building_id: u64,
     pub target_position: Option<&'a Vec2I>,
     pub resource: Option<&'a ResourceStack>,
-    pub building_kind: BuildingKind,
+    pub building_spec_id: Option<::flatbuffers::WIPOffset<&'a str>>,
     pub amount: u32,
     pub recipe_id: Option<::flatbuffers::WIPOffset<&'a str>>,
 }
@@ -268,7 +268,7 @@ impl<'a> Default for ActionArgs<'a> {
       target_building_id: 0,
       target_position: None,
       resource: None,
-      building_kind: BuildingKind::None,
+      building_spec_id: None,
       amount: 0,
       recipe_id: None,
     }
@@ -305,8 +305,8 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> ActionBuilder<'a, 'b, A> {
     self.fbb_.push_slot_always::<&ResourceStack>(Action::VT_RESOURCE, resource);
   }
   #[inline]
-  pub fn add_building_kind(&mut self, building_kind: BuildingKind) {
-    self.fbb_.push_slot::<BuildingKind>(Action::VT_BUILDING_KIND, building_kind, BuildingKind::None);
+  pub fn add_building_spec_id(&mut self, building_spec_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Action::VT_BUILDING_SPEC_ID, building_spec_id);
   }
   #[inline]
   pub fn add_amount(&mut self, amount: u32) {
@@ -340,7 +340,7 @@ impl ::core::fmt::Debug for Action<'_> {
       ds.field("target_building_id", &self.target_building_id());
       ds.field("target_position", &self.target_position());
       ds.field("resource", &self.resource());
-      ds.field("building_kind", &self.building_kind());
+      ds.field("building_spec_id", &self.building_spec_id());
       ds.field("amount", &self.amount());
       ds.field("recipe_id", &self.recipe_id());
       ds.finish()

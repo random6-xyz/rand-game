@@ -121,6 +121,8 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
         eprintln!("tick {}: {}", entry.tick, entry.summary());
         action_log.push(entry);
     }
+    let max_entries = state.inner().config.rules.max_action_log_entries.max(1);
+    action_log.trim_to(max_entries);
     storage::save_action_log(&action_log)?;
 
     Ok(())
