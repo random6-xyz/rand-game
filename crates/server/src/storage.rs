@@ -501,6 +501,8 @@ fn load_world_from_path(path: &Path) -> Result<Option<WorldState>, Box<dyn std::
         buildings,
         tile_overrides,
         next_id: from_i64(meta.4, "next id")?,
+        crafting_queue: Vec::new(),
+        progress_log: Vec::new(),
     })))
 }
 

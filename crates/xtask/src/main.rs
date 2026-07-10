@@ -245,19 +245,39 @@ Connection: close\r\n\r\n"
 
 fn user_debug() -> Result<(), Box<dyn std::error::Error>> {
     upload_bot(Vec::new())?;
-    cargo(&[
-        "run",
-        "-p",
-        "client",
-        "--",
-        "map-view",
-        "--player-id",
-        "1",
-        "--x",
-        "0",
-        "--y",
-        "0",
-    ])
+
+    let (log_file, log_path) = create_server_log_file("user")?;
+    println!("Client logs: {}", log_path.display());
+
+    let cargo = cargo_bin();
+    println!("$ {cargo} run -p client -- map-view --player-id 1 --x 0 --y 0");
+
+    let log_file_clone = log_file.try_clone()?;
+    let status = Command::new(cargo)
+        .args([
+            "run",
+            "-p",
+            "client",
+            "--",
+            "map-view",
+            "--player-id",
+            "1",
+            "--x",
+            "0",
+            "--y",
+            "0",
+        ])
+        .stdout(Stdio::from(log_file))
+        .stderr(Stdio::from(log_file_clone))
+        .status()?;
+
+    if !status.success() {
+        return Err(format!("client command failed with status {status}").into());
+    }
+
+    print_last_n_lines(&log_path, 20);
+
+    Ok(())
 }
 
 fn e2e_debug_recipes() -> Result<(), Box<dyn std::error::Error>> {
@@ -325,10 +345,13 @@ max_persistent_memory_bytes = 4096
 }
 
 fn spawn_e2e_recipes_server() -> Result<ServerProcess, Box<dyn std::error::Error>> {
+    let (log_file, log_path) = create_server_log_file("e2e-recipes")?;
+    println!("Server logs: {}", log_path.display());
     let cargo = cargo_bin();
     println!(
         "$ {cargo} run -p rand-game-server -- --addr {E2E_SERVER_ADDR} --rules-path {E2E_RECIPES_RULES_PATH} --debug-max-actions 2000 --log-bot-stderr"
     );
+    let log_file_clone = log_file.try_clone()?;
     let child = Command::new(cargo)
         .args([
             "run",
@@ -344,10 +367,13 @@ fn spawn_e2e_recipes_server() -> Result<ServerProcess, Box<dyn std::error::Error
             "--log-bot-stderr",
         ])
         .env("RAND_GAME_VERIFY_RECIPES", "1")
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
+        .stdout(Stdio::from(log_file))
+        .stderr(Stdio::from(log_file_clone))
         .spawn()?;
-    Ok(ServerProcess { child })
+    Ok(ServerProcess {
+        child,
+        log_path: Some(log_path),
+    })
 }
 
 fn count_distinct_crafted_recipes(action_log: &str) -> usize {
@@ -438,10 +464,13 @@ max_persistent_memory_bytes = 4096
 }
 
 fn spawn_e2e_server() -> Result<ServerProcess, Box<dyn std::error::Error>> {
+    let (log_file, log_path) = create_server_log_file("e2e")?;
+    println!("Server logs: {}", log_path.display());
     let cargo = cargo_bin();
     println!(
         "$ {cargo} run -p rand-game-server -- --addr {E2E_SERVER_ADDR} --rules-path {E2E_RULES_PATH} --debug-max-actions 1000"
     );
+    let log_file_clone = log_file.try_clone()?;
     let child = Command::new(cargo)
         .args([
             "run",
@@ -455,10 +484,13 @@ fn spawn_e2e_server() -> Result<ServerProcess, Box<dyn std::error::Error>> {
             "--debug-max-actions",
             "1000",
         ])
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
+        .stdout(Stdio::from(log_file))
+        .stderr(Stdio::from(log_file_clone))
         .spawn()?;
-    Ok(ServerProcess { child })
+    Ok(ServerProcess {
+        child,
+        log_path: Some(log_path),
+    })
 }
 
 fn wait_for_server(
@@ -529,6 +561,7 @@ fn json_leading_number(input: &str) -> Option<u64> {
 
 struct ServerProcess {
     child: Child,
+    log_path: Option<PathBuf>,
 }
 
 impl ServerProcess {
@@ -545,6 +578,9 @@ impl Drop for ServerProcess {
         if self.child.try_wait().ok().flatten().is_none() {
             let _ = self.child.kill();
             let _ = self.child.wait();
+        }
+        if let Some(log_path) = &self.log_path {
+            print_last_n_lines(log_path, 20);
         }
     }
 }
@@ -565,6 +601,32 @@ fn remove_dir_if_exists(path: PathBuf) -> Result<(), Box<dyn std::error::Error>>
     }
 
     Ok(())
+}
+
+fn create_server_log_file(sub_name: &str) -> std::io::Result<(std::fs::File, PathBuf)> {
+    let dir = PathBuf::from("target/e2e/logs");
+    fs::create_dir_all(&dir)?;
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let filename = format!("server-{sub_name}-{timestamp}.log");
+    let path = dir.join(filename);
+    let file = fs::File::create(&path)?;
+    Ok((file, path))
+}
+
+fn print_last_n_lines(path: &Path, n: usize) {
+    match fs::read_to_string(path) {
+        Ok(content) => {
+            let lines: Vec<&str> = content.lines().collect();
+            let start = if lines.len() > n { lines.len() - n } else { 0 };
+            for line in &lines[start..] {
+                println!("{line}");
+            }
+        }
+        Err(e) => eprintln!("Warning: could not read log file {}: {e}", path.display()),
+    }
 }
 
 fn cargo(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {

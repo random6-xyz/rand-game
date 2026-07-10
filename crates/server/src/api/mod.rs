@@ -13,7 +13,7 @@ use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 
 use crate::action_log::ActionLogEntry;
-use crate::model::{Entity, Position, Tile};
+use crate::model::{Position, Tile};
 use crate::state::SharedState;
 use crate::storage;
 
@@ -120,19 +120,30 @@ async fn world_region(
     })
 }
 
-async fn entities(State(state): State<SharedState>) -> Json<Vec<Entity>> {
+async fn entities(
+    State(state): State<SharedState>,
+    Query(query): Query<EntitiesQuery>,
+) -> impl IntoResponse {
+    let max_limit = state.inner().config.rules.max_entities_response;
+    let limit = query.limit.unwrap_or(max_limit).min(max_limit);
+    let offset = query.offset.unwrap_or(0);
     let world = state.inner().world.lock().await;
     let mut entities = world.entities.values().cloned().collect::<Vec<_>>();
     entities.sort_by_key(|entity| entity.id);
-    Json(entities)
+    let total = entities.len();
+    let start = offset.min(total);
+    let end = (start + limit).min(total);
+    let slice = entities[start..end].to_vec();
+    let headers = [("X-Total-Count", total.to_string())];
+    (headers, Json(slice))
 }
 
 async fn action_log(
     State(state): State<SharedState>,
     Query(query): Query<ActionLogQuery>,
-) -> Json<ActionLogResponse> {
-    let page_size = state.inner().config.rules.action_log_page_size.max(1);
-    let limit = query.limit.unwrap_or(page_size).clamp(1, page_size * 10);
+) -> impl IntoResponse {
+    let max_limit = state.inner().config.rules.max_action_log_response.max(1);
+    let limit = query.limit.unwrap_or(max_limit).clamp(1, max_limit);
     let offset = query.offset.unwrap_or(0);
     let action_log = state.inner().action_log.lock().await;
     let entries = action_log.entries();
@@ -140,12 +151,14 @@ async fn action_log(
     let start = offset.min(total);
     let end = (start + limit).min(total);
     let slice = entries[start..end].to_vec();
-    Json(ActionLogResponse {
+    let headers = [("X-Total-Count", total.to_string())];
+    let body = Json(ActionLogResponse {
         entries: slice,
         total,
         limit,
         offset,
-    })
+    });
+    (headers, body)
 }
 
 async fn bot_stderr(
@@ -163,7 +176,7 @@ async fn stream_bot_stderr(mut socket: WebSocket, state: SharedState, player_id:
         let event = match receiver.recv().await {
             Ok(event) => event,
             Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                eprintln!("bot-stderr channel lagged: dropped {n} events");
+                tracing::warn!("bot-stderr channel lagged: dropped {n} events");
                 continue;
             }
             Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
@@ -271,6 +284,12 @@ struct UploadQuery {
 #[derive(Debug, Deserialize)]
 struct BotStderrQuery {
     player_id: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct EntitiesQuery {
+    limit: Option<usize>,
+    offset: Option<usize>,
 }
 
 #[derive(Debug, Deserialize)]

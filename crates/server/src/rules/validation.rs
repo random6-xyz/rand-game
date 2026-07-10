@@ -175,6 +175,8 @@ fn validate_build(
         .ok_or("actor entity does not exist")?;
     validate_build_costs(actor.cargo.as_slice(), spec)?;
 
+    let required_ticks = spec.crafting_time.unwrap_or(1);
+
     Ok(ValidatedAction::Build {
         actor_entity_id: action.actor_entity_id(),
         target,
@@ -187,6 +189,7 @@ fn validate_build(
                 amount: stack.amount,
             })
             .collect(),
+        required_ticks,
     })
 }
 
@@ -339,6 +342,7 @@ fn validate_craft(
                 amount: stack.amount,
             })
             .collect(),
+        required_ticks: recipe.crafting_time,
     })
 }
 
@@ -520,6 +524,7 @@ fn validate_research(
                 amount: stack.amount,
             })
             .collect(),
+        required_ticks: 1,
     })
 }
 
@@ -713,6 +718,7 @@ mod tests {
                 actor_entity_id,
                 ref research_id,
                 ref inputs,
+                ..
             } => {
                 assert_eq!(actor_entity_id, actor_id);
                 assert_eq!(research_id, "basic-smelting");
