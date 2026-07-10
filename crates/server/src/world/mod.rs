@@ -4,12 +4,21 @@ use std::path::PathBuf;
 mod cargo;
 
 use crate::model::{
-    Building, BuildingKind, CoreTier, Entity, ItemStack, MapKind, Player, Position, ResourceKind,
-    ResourceStack, Tile, TileOverride, ValidatedAction,
+    Building, BuildingKind, CoreTier, Entity, ItemStack, MapKind, Player, Position, ProgressEntry,
+    ProgressKind, ResourceKind, ResourceStack, Tile, TileOverride, ValidatedAction,
 };
 use crate::rules::{self, ServerEnv, ServerRules};
 
 use self::cargo::{add_cargo, remove_cargo};
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub(crate) struct CraftQueueEntry {
+    pub entity_id: u64,
+    pub recipe_id: String,
+    pub building_id: Option<u64>,
+    pub start_tick: u64,
+    pub required_ticks: u32,
+}
 
 /// The game world state.
 ///
@@ -26,6 +35,8 @@ pub struct WorldState {
     pub buildings: HashMap<u64, Building>,
     tile_overrides: HashMap<Position, TileOverride>,
     next_id: u64,
+    pub crafting_queue: Vec<CraftQueueEntry>,
+    pub progress_log: Vec<ProgressEntry>,
 }
 
 pub(crate) struct WorldStateParts {
@@ -38,6 +49,8 @@ pub(crate) struct WorldStateParts {
     pub buildings: HashMap<u64, Building>,
     pub tile_overrides: HashMap<Position, TileOverride>,
     pub next_id: u64,
+    pub crafting_queue: Vec<CraftQueueEntry>,
+    pub progress_log: Vec<ProgressEntry>,
 }
 
 impl WorldState {
@@ -57,12 +70,25 @@ impl WorldState {
             buildings: HashMap::new(),
             tile_overrides: HashMap::new(),
             next_id: 1,
+            crafting_queue: Vec::new(),
+            progress_log: Vec::new(),
         };
 
         world.spawn_initial_player();
         world
     }
 
+    /// Resolves the `Tile` at a given `position` by applying overrides on top
+    /// of the procedurally generated tile.
+    ///
+    /// Override resolution follows the [`TileOverride`] triple-state semantics:
+    ///
+    /// - If the override entry exists for this position, each field is inspected:
+    ///   - `None` → the generated value for that field is preserved unchanged.
+    ///   - `Some(None)` → the field is explicitly cleared to `None`.
+    ///   - `Some(Some(v))` → the field is replaced with `v`.
+    /// - After overrides, a building at the position (if any) is layered on top,
+    ///   setting `building_id` and overwriting `owner_id`.
     pub fn tile_at(&self, position: Position) -> Tile {
         let mut tile =
             rules::generated_tile(self.world_seed, self.map_id, self.map_kind(), position);
@@ -99,6 +125,8 @@ impl WorldState {
             buildings: parts.buildings,
             tile_overrides: parts.tile_overrides,
             next_id: parts.next_id,
+            crafting_queue: parts.crafting_queue,
+            progress_log: parts.progress_log,
         }
     }
 
@@ -226,7 +254,15 @@ impl WorldState {
                 target,
                 ref building_spec_id,
                 ref inputs,
-            } => self.apply_build(player_id, actor_entity_id, target, building_spec_id, inputs),
+                required_ticks,
+            } => self.apply_build(
+                player_id,
+                actor_entity_id,
+                target,
+                building_spec_id,
+                inputs,
+                required_ticks,
+            ),
             ValidatedAction::Lift {
                 actor_entity_id,
                 kind,
@@ -240,20 +276,92 @@ impl WorldState {
             ValidatedAction::Craft {
                 actor_entity_id,
                 ref recipe_id,
+                target_building_id,
                 ref inputs,
                 ref outputs,
-                ..
-            } => self.apply_craft(actor_entity_id, recipe_id, inputs, outputs),
+                required_ticks,
+            } => self.apply_craft(
+                actor_entity_id,
+                recipe_id,
+                inputs,
+                outputs,
+                target_building_id,
+                required_ticks,
+            ),
             ValidatedAction::Research {
                 actor_entity_id,
                 ref research_id,
                 ref inputs,
-            } => self.apply_research(player_id, actor_entity_id, research_id, inputs),
+                required_ticks,
+            } => self.apply_research(
+                player_id,
+                actor_entity_id,
+                research_id,
+                inputs,
+                required_ticks,
+            ),
         }
     }
 
     pub fn advance_tick(&mut self) {
         self.tick += 1;
+
+        // Process completed progress entries
+        let mut completed: Vec<usize> = Vec::new();
+        for (i, entry) in self.progress_log.iter().enumerate() {
+            if entry.start_tick.wrapping_add(entry.required_ticks as u64) <= self.tick {
+                completed.push(i);
+            }
+        }
+        for &i in completed.iter().rev() {
+            let entry = self.progress_log.remove(i);
+            match entry.kind {
+                ProgressKind::Craft { outputs, .. } => {
+                    if let Some(entity) = self.entities.get_mut(&entry.entity_id) {
+                        for output in outputs {
+                            let _ = add_cargo(entity, output);
+                        }
+                    }
+                }
+                ProgressKind::Build {
+                    building_spec_id,
+                    building_kind,
+                    target,
+                    owner_id,
+                    building_id,
+                } => {
+                    self.buildings.insert(
+                        building_id,
+                        Building {
+                            id: building_id,
+                            kind: building_kind,
+                            spec_id: building_spec_id,
+                            owner_id,
+                            position: target,
+                            power: 0,
+                        },
+                    );
+                }
+                ProgressKind::Research { research_id } => {
+                    if let Some(entity) = self.entities.get(&entry.entity_id)
+                        && let Some(player) = self.players.get_mut(&entity.owner_id)
+                    {
+                        player.researched_ids.insert(research_id);
+                    }
+                }
+            }
+        }
+
+        // Also clean up crafting_queue for completed crafts
+        let mut craft_completed: Vec<usize> = Vec::new();
+        for (i, entry) in self.crafting_queue.iter().enumerate() {
+            if entry.start_tick.wrapping_add(entry.required_ticks as u64) <= self.tick {
+                craft_completed.push(i);
+            }
+        }
+        for &i in craft_completed.iter().rev() {
+            self.crafting_queue.remove(i);
+        }
     }
 
     fn apply_move(&mut self, actor_entity_id: u64, target: Position) -> Result<String, String> {
@@ -315,29 +423,34 @@ impl WorldState {
         target: Position,
         spec_id: &str,
         inputs: &[ItemStack],
+        required_ticks: u32,
     ) -> Result<String, String> {
         let building_id = self.alloc_id();
         let kind = spec_id_to_building_kind(spec_id);
-        self.buildings.insert(
-            building_id,
-            Building {
-                id: building_id,
-                kind,
-                spec_id: spec_id.to_string(),
-                owner_id: player_id,
-                position: target,
-                power: 0,
-            },
-        );
 
+        // Consume inputs immediately
         if let Some(entity) = self.entities.get_mut(&actor_entity_id) {
             for cost in inputs {
                 let _ = remove_cargo(entity, &cost.kind, cost.amount);
             }
         }
 
+        // Queue the build
+        self.progress_log.push(ProgressEntry {
+            entity_id: actor_entity_id,
+            kind: ProgressKind::Build {
+                building_spec_id: spec_id.to_string(),
+                building_kind: kind,
+                target,
+                owner_id: player_id,
+                building_id,
+            },
+            start_tick: self.tick,
+            required_ticks,
+        });
+
         Ok(format!(
-            "entity {actor_entity_id} built {spec_id} {building_id} at ({}, {})",
+            "entity {actor_entity_id} started building {spec_id} {building_id} at ({}, {})",
             target.x, target.y
         ))
     }
@@ -441,6 +554,8 @@ impl WorldState {
         recipe_id: &str,
         inputs: &[ItemStack],
         outputs: &[ItemStack],
+        target_building_id: Option<u64>,
+        required_ticks: u32,
     ) -> Result<String, String> {
         let entity = self
             .entities
@@ -449,19 +564,36 @@ impl WorldState {
         for input in inputs {
             remove_cargo(entity, &input.kind, input.amount);
         }
-        for output in outputs {
-            add_cargo(entity, output.clone())?;
-        }
 
-        Ok(format!("entity {actor_entity_id} crafted {recipe_id}"))
+        // Queue the craft
+        self.crafting_queue.push(CraftQueueEntry {
+            entity_id: actor_entity_id,
+            recipe_id: recipe_id.to_string(),
+            building_id: target_building_id,
+            start_tick: self.tick,
+            required_ticks,
+        });
+        self.progress_log.push(ProgressEntry {
+            entity_id: actor_entity_id,
+            kind: ProgressKind::Craft {
+                recipe_id: recipe_id.to_string(),
+                target_building_id,
+                outputs: outputs.to_vec(),
+            },
+            start_tick: self.tick,
+            required_ticks,
+        });
+
+        Ok(format!("entity {actor_entity_id} queued craft {recipe_id}"))
     }
 
     fn apply_research(
         &mut self,
-        player_id: u64,
+        _player_id: u64,
         actor_entity_id: u64,
         research_id: &str,
         inputs: &[ItemStack],
+        required_ticks: u32,
     ) -> Result<String, String> {
         let entity = self
             .entities
@@ -470,15 +602,33 @@ impl WorldState {
         for input in inputs {
             remove_cargo(entity, &input.kind, input.amount);
         }
-        let player = self
-            .players
-            .get_mut(&player_id)
-            .expect("validated research player must exist");
-        player.researched_ids.insert(research_id.to_string());
 
-        Ok(format!("entity {actor_entity_id} researched {research_id}"))
+        // Queue the research
+        self.progress_log.push(ProgressEntry {
+            entity_id: actor_entity_id,
+            kind: ProgressKind::Research {
+                research_id: research_id.to_string(),
+            },
+            start_tick: self.tick,
+            required_ticks,
+        });
+
+        Ok(format!(
+            "entity {actor_entity_id} queued research {research_id}"
+        ))
     }
 
+    /// Overrides the `resource` field of a tile at `position`.
+    ///
+    /// This always sets the outer [`TileOverride::resource`] to `Some(…)`, meaning
+    /// the override is *active* for this field. The inner value controls the result:
+    ///
+    /// - `resource: None` → stored as `Some(None)`, which explicitly clears any
+    ///   generated resource from the tile.
+    /// - `resource: Some(v)` → stored as `Some(Some(v))`, which replaces the
+    ///   generated resource with `v`.
+    ///
+    /// See [`TileOverride`] for the full triple-state semantics.
     fn set_tile_resource(&mut self, position: Position, resource: Option<ResourceStack>) {
         self.tile_overrides.entry(position).or_default().resource = Some(resource);
     }
@@ -646,13 +796,23 @@ mod tests {
                         kind: "iron-plate".into(),
                         amount: 1,
                     }],
+                    required_ticks: 0,
                 },
             )
             .expect("craft should succeed");
 
+        // Inputs consumed immediately
         let cargo = &world.entities.get(&actor_id).expect("actor").cargo;
-        assert_eq!(result, format!("entity {actor_id} crafted iron-plate"));
+        assert_eq!(result, format!("entity {actor_id} queued craft iron-plate"));
         assert!(!cargo.iter().any(|stack| stack.kind == "iron-ore"));
+        // Outputs not yet produced
+        assert!(!cargo.iter().any(|stack| stack.kind == "iron-plate"));
+
+        // Advance tick to process the queue
+        world.advance_tick();
+
+        // Outputs should now be in cargo
+        let cargo = &world.entities.get(&actor_id).expect("actor").cargo;
         assert!(
             cargo
                 .iter()
@@ -684,17 +844,26 @@ mod tests {
                         kind: "iron-ore".into(),
                         amount: 10,
                     }],
+                    required_ticks: 0,
                 },
             )
             .expect("research should succeed");
 
         let cargo = &world.entities.get(&actor_id).expect("actor").cargo;
-        let player = world.players.get(&player_id).expect("player");
         assert_eq!(
             result,
-            format!("entity {actor_id} researched basic-smelting")
+            format!("entity {actor_id} queued research basic-smelting")
         );
         assert!(!cargo.iter().any(|stack| stack.kind == "iron-ore"));
+        // Research not unlocked until tick processes
+        let player = world.players.get(&player_id).expect("player");
+        assert!(!player.researched_ids.contains("basic-smelting"));
+
+        // Advance tick to process the queue
+        world.advance_tick();
+
+        // Research should now be unlocked
+        let player = world.players.get(&player_id).expect("player");
         assert!(player.researched_ids.contains("basic-smelting"));
     }
 

@@ -17,6 +17,8 @@ pub const BUILD_CORE_RADIUS: u32 = 4;
 pub const BOT_STDERR_CHANNEL_CAPACITY: usize = 128;
 pub const MAX_ACTION_LOG_ENTRIES: usize = 10000;
 pub const ACTION_LOG_PAGE_SIZE: usize = 100;
+pub const MAX_ENTITIES_RESPONSE: usize = 1000;
+pub const MAX_ACTION_LOG_RESPONSE: usize = 200;
 pub const ENABLE_BOT_UPLOAD: bool = false;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -51,6 +53,8 @@ pub struct ServerRules {
     pub bot_stderr_channel_capacity: usize,
     pub max_action_log_entries: usize,
     pub action_log_page_size: usize,
+    pub max_entities_response: usize,
+    pub max_action_log_response: usize,
     pub enable_bot_upload: bool,
     pub basic_core: RuntimeProfileConfig,
     pub standard_core: RuntimeProfileConfig,
@@ -73,6 +77,8 @@ impl Default for ServerRules {
             bot_stderr_channel_capacity: BOT_STDERR_CHANNEL_CAPACITY,
             max_action_log_entries: MAX_ACTION_LOG_ENTRIES,
             action_log_page_size: ACTION_LOG_PAGE_SIZE,
+            max_entities_response: MAX_ENTITIES_RESPONSE,
+            max_action_log_response: MAX_ACTION_LOG_RESPONSE,
             enable_bot_upload: ENABLE_BOT_UPLOAD,
             basic_core: RuntimeProfileConfig::basic(),
             standard_core: RuntimeProfileConfig::standard(),
@@ -167,4 +173,4 @@ impl From<RuntimeProfileConfig> for RuntimeProfile {
 }
 
 pub use generation::generated_tile;
-pub use validation::{validate_action, validate_game_output};
+pub use validation::validate_game_output;

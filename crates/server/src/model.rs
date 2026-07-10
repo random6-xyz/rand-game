@@ -9,6 +9,33 @@ pub struct Position {
     pub y: i32,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ProgressKind {
+    Craft {
+        recipe_id: String,
+        target_building_id: Option<u64>,
+        outputs: Vec<ItemStack>,
+    },
+    Build {
+        building_spec_id: String,
+        building_kind: BuildingKind,
+        target: Position,
+        owner_id: u64,
+        building_id: u64,
+    },
+    Research {
+        research_id: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProgressEntry {
+    pub entity_id: u64,
+    pub kind: ProgressKind,
+    pub start_tick: u64,
+    pub required_ticks: u32,
+}
+
 impl Position {
     pub const fn new(x: i32, y: i32) -> Self {
         Self { x, y }
@@ -94,6 +121,7 @@ pub enum ValidatedAction {
         target: Position,
         building_spec_id: String,
         inputs: Vec<ItemStack>,
+        required_ticks: u32,
     },
     Lift {
         actor_entity_id: u64,
@@ -111,11 +139,13 @@ pub enum ValidatedAction {
         target_building_id: Option<u64>,
         inputs: Vec<ItemStack>,
         outputs: Vec<ItemStack>,
+        required_ticks: u32,
     },
     Research {
         actor_entity_id: u64,
         research_id: String,
         inputs: Vec<ItemStack>,
+        required_ticks: u32,
     },
 }
 
@@ -126,6 +156,8 @@ pub struct Building {
     pub spec_id: String,
     pub owner_id: u64,
     pub position: Position,
+    /// Reserved for future power/energy model (P2-3).
+    /// Currently unused — set based on BuildingSpec field but not consumed.
     pub power: i32,
 }
 
@@ -176,6 +208,22 @@ pub struct Tile {
     pub owner_id: Option<u64>,
 }
 
+/// Per-tile overrides applied on top of procedurally generated tiles.
+///
+/// Each field uses `Option<Option<T>>` to encode three distinct states:
+///
+/// | Rust value             | Meaning                                                |
+/// |------------------------|--------------------------------------------------------|
+/// | `None`                 | No override — the generated value is kept as-is.       |
+/// | `Some(None)`           | Explicitly clear: force the field to `None`.           |
+/// | `Some(Some(value))`    | Override to a specific `value`.                        |
+///
+/// ## Why `Option<Option<T>>`?
+///
+/// A plain `Option<T>` cannot distinguish "leave the generated value alone"
+/// from "explicitly set to `None`". The outer `Option` controls whether the
+/// field is overridden at all; the inner `Option` holds the override value
+/// (which may itself be `None` to signal deletion).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TileOverride {
     pub resource: Option<Option<ResourceStack>>,

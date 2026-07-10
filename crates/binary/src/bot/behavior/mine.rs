@@ -1,6 +1,6 @@
 use rand_game_common::fb::ResourceKind;
 
-use super::super::model::{ActionPlan, Actor, PlannedAction};
+use super::super::model::{ActionPlan, Actor, PlannedAction, SmallCargo};
 use super::super::pathfinding::{adjacent_resource_index, adjacent_resource_index_by_kind};
 use super::BehaviorContext;
 
@@ -29,6 +29,7 @@ pub(crate) fn try_mine_adjacent(
 
     if simulate_effects {
         resource.amount -= amount;
+        add_to_cargo(&mut actor.cargo, resource.resource, amount);
     }
 
     Some(action)
@@ -60,7 +61,20 @@ pub(crate) fn try_mine_specific(
 
     if simulate_effects {
         resource.amount -= amount;
+        add_to_cargo(&mut actor.cargo, resource.resource, amount);
     }
 
     Some(action)
+}
+
+fn add_to_cargo(cargo: &mut SmallCargo, kind: ResourceKind, amount: u32) {
+    match kind {
+        ResourceKind::Iron => cargo.iron += amount,
+        ResourceKind::Copper => cargo.copper += amount,
+        ResourceKind::Energy => cargo.energy += amount,
+        ResourceKind::Stone => cargo.stone += amount,
+        ResourceKind::Tree => cargo.tree += amount,
+        ResourceKind::Water => cargo.water += amount,
+        _ => {}
+    }
 }

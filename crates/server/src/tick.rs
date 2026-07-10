@@ -1,13 +1,10 @@
 use std::path::Path;
 use std::time::Duration;
 
-use rand_game_common::fb;
-
 use crate::action_log::ActionLogEntry;
 use crate::protocol;
 use crate::rules;
 use crate::runner;
-use crate::state::ServerConfig;
 use crate::state::{BotStderrEvent, SharedState};
 use crate::storage;
 
@@ -18,7 +15,7 @@ pub async fn run_tick_loop(state: SharedState) {
     loop {
         interval.tick().await;
         if let Err(err) = tick_once(state.clone()).await {
-            eprintln!("tick failed: {err}");
+            tracing::error!("tick failed: {err}");
         }
     }
 }
@@ -79,38 +76,27 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
         let tick = world.tick;
         let mut entries = Vec::new();
 
-        if state.inner().config.debug_max_actions.is_some() {
-            apply_debug_output_sequentially(
-                &mut world,
-                player_id,
-                tick,
-                &bot_result.output_payload,
-                &state.inner().config,
-                &mut entries,
-            )?;
-        } else {
-            let validation = rules::validate_game_output(
-                &world,
-                player_id,
-                &bot_result.output_payload,
-                &state.inner().config.rules,
-                Some(&state.inner().config.rule_catalog),
-                state.inner().config.debug_max_actions,
-            )?;
-            for rejection in &validation.rejected {
-                eprintln!("rejected action: {rejection}");
-            }
-
-            let mut world_copy = world.clone();
-            if let Some(memory) = validation.persistent_memory {
-                world_copy.set_player_persistent_memory(player_id, memory)?;
-            }
-            for action in validation.actions {
-                let result = world_copy.apply_action(player_id, &action)?;
-                entries.push(ActionLogEntry::new(tick, player_id, action, result));
-            }
-            *world = world_copy;
+        let validation = rules::validate_game_output(
+            &world,
+            player_id,
+            &bot_result.output_payload,
+            &state.inner().config.rules,
+            Some(&state.inner().config.rule_catalog),
+            state.inner().config.debug_max_actions,
+        )?;
+        for rejection in &validation.rejected {
+            tracing::warn!("rejected action: {rejection}");
         }
+
+        let mut world_copy = world.clone();
+        if let Some(memory) = validation.persistent_memory {
+            world_copy.set_player_persistent_memory(player_id, memory)?;
+        }
+        for action in validation.actions {
+            let result = world_copy.apply_action(player_id, &action)?;
+            entries.push(ActionLogEntry::new(tick, player_id, action, result));
+        }
+        *world = world_copy;
         let snapshot = world.clone();
         (entries, snapshot)
     };
@@ -121,7 +107,7 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
         let mut action_log = state.inner().action_log.lock().await;
         let entries = compact_entries(entries);
         for entry in entries {
-            eprintln!("tick {}: {}", entry.tick, entry.summary());
+            tracing::info!("tick {}: {}", entry.tick, entry.summary());
             action_log.push(entry);
         }
         let max_entries = state.inner().config.rules.max_action_log_entries.max(1);
@@ -130,71 +116,6 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
     };
 
     storage::save_action_log(&action_log_snapshot)?;
-
-    Ok(())
-}
-
-fn apply_debug_output_sequentially(
-    world: &mut crate::world::WorldState,
-    player_id: u64,
-    tick: u64,
-    output_payload: &[u8],
-    config: &ServerConfig,
-    entries: &mut Vec<ActionLogEntry>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let output = fb::root_as_game_output(output_payload)?;
-    if output.protocol_version() != fb::ProtocolVersion::V1 {
-        eprintln!("rejected action: unsupported protocol_version");
-        return Ok(());
-    }
-
-    let runtime_profile = world
-        .player_runtime_profile_with_rules(player_id, &config.rules)
-        .ok_or("player has no runtime profile")?;
-    if let Some(memory) = output.persistent_memory() {
-        if memory.len() > runtime_profile.max_persistent_memory_bytes as usize {
-            eprintln!(
-                "rejected action: persistent memory {} bytes exceeds max {}",
-                memory.len(),
-                runtime_profile.max_persistent_memory_bytes
-            );
-        } else {
-            world.set_player_persistent_memory(player_id, memory.bytes().to_vec())?;
-        }
-    }
-
-    let Some(actions) = output.actions() else {
-        return Ok(());
-    };
-    let max_actions = config
-        .debug_max_actions
-        .unwrap_or(runtime_profile.max_actions) as usize;
-    if actions.len() > max_actions {
-        eprintln!(
-            "rejected action: action count {} exceeds max {}",
-            actions.len(),
-            max_actions
-        );
-    }
-
-    for index in 0..actions.len().min(max_actions) {
-        let action = actions.get(index);
-        match rules::validate_action(
-            world,
-            player_id,
-            action,
-            &config.rules,
-            Some(&config.rule_catalog),
-        ) {
-            Ok(action) => match world.apply_action(player_id, &action) {
-                Ok(result) => {
-                    entries.push(ActionLogEntry::new(tick, player_id, action, result));
-                }
-                Err(err) => eprintln!("apply action failed: action {index}: {err}"),
-            },
-            Err(reason) => eprintln!("rejected action: action {index}: {reason}"),
-        }
-    }
 
     Ok(())
 }
@@ -235,7 +156,7 @@ fn should_run_player_bot(
 
 fn log_bot_stderr(player_id: u64, bot_path: &Path, stderr: &str) {
     for line in stderr.trim().lines() {
-        eprintln!(
+        tracing::warn!(
             "bot stderr [player_id={player_id} path={}]: {line}",
             bot_path.display()
         );

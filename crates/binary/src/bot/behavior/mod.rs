@@ -1,7 +1,7 @@
+pub(crate) mod craft;
 pub(crate) mod mine;
 pub(crate) mod navigate;
-
-pub(crate) mod craft;
+pub(crate) mod put;
 
 use std::collections::HashSet;
 
@@ -9,7 +9,12 @@ use super::model::{Actor, PlannedAction, Position, ResourceTile};
 
 type Behavior = fn(&mut Actor, &mut BehaviorContext<'_>) -> Option<PlannedAction>;
 
-const BEHAVIORS: &[Behavior] = &[mine::try_mine_adjacent, navigate::try_move_toward_resource];
+const BEHAVIORS: &[Behavior] = &[
+    mine::try_mine_adjacent,
+    craft::try_craft_any_entity_recipe,
+    put::try_put_excess,
+    navigate::try_move_toward_resource,
+];
 
 pub(crate) struct BehaviorContext<'a> {
     pub(crate) resources: &'a mut [ResourceTile],

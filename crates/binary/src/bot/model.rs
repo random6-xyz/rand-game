@@ -31,6 +31,35 @@ pub(crate) struct SmallCargo {
     pub(crate) water: u32,
 }
 
+impl SmallCargo {
+    pub(crate) fn to_map(&self) -> std::collections::HashMap<String, u32> {
+        let mut map = std::collections::HashMap::new();
+        if self.iron > 0 {
+            map.insert("iron-ore".to_string(), self.iron);
+        }
+        if self.copper > 0 {
+            map.insert("copper-ore".to_string(), self.copper);
+        }
+        if self.energy > 0 {
+            map.insert("energy".to_string(), self.energy);
+        }
+        if self.stone > 0 {
+            map.insert("stone".to_string(), self.stone);
+        }
+        if self.tree > 0 {
+            map.insert("tree".to_string(), self.tree);
+        }
+        if self.water > 0 {
+            map.insert("water".to_string(), self.water);
+        }
+        map
+    }
+
+    pub(crate) fn total_items(&self) -> u32 {
+        self.iron + self.copper + self.energy + self.stone + self.tree + self.water
+    }
+}
+
 pub(crate) enum ActionPlan {
     Mine {
         target: Position,
