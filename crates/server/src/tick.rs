@@ -88,29 +88,15 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
             tracing::warn!("rejected action: {rejection}");
         }
 
-        if state.inner().config.debug_max_actions.is_some() {
-            if let Some(memory) = validation.persistent_memory {
-                world.set_player_persistent_memory(player_id, memory)?;
-            }
-            for action in validation.actions {
-                match world.apply_action(player_id, &action) {
-                    Ok(result) => {
-                        entries.push(ActionLogEntry::new(tick, player_id, action, result));
-                    }
-                    Err(err) => tracing::error!("apply action failed: {err}"),
-                }
-            }
-        } else {
-            let mut world_copy = world.clone();
-            if let Some(memory) = validation.persistent_memory {
-                world_copy.set_player_persistent_memory(player_id, memory)?;
-            }
-            for action in validation.actions {
-                let result = world_copy.apply_action(player_id, &action)?;
-                entries.push(ActionLogEntry::new(tick, player_id, action, result));
-            }
-            *world = world_copy;
+        let mut world_copy = world.clone();
+        if let Some(memory) = validation.persistent_memory {
+            world_copy.set_player_persistent_memory(player_id, memory)?;
         }
+        for action in validation.actions {
+            let result = world_copy.apply_action(player_id, &action)?;
+            entries.push(ActionLogEntry::new(tick, player_id, action, result));
+        }
+        *world = world_copy;
         let snapshot = world.clone();
         (entries, snapshot)
     };
