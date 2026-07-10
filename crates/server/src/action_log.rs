@@ -10,7 +10,7 @@ pub struct ActionLogEntry {
     pub count: u64,
 }
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct ActionLog {
     entries: Vec<ActionLogEntry>,
 }

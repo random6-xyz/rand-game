@@ -87,6 +87,7 @@ cargo run -p rand-game-server -- --env-path config/server.env.toml
 cargo run -p rand-game-server -- --rules-path config/server.rules.toml
 cargo run -p rand-game-server -- --debug-max-actions 1000
 cargo run -p rand-game-server -- --log-bot-stderr
+cargo run -p rand-game-server -- --enable-bot-upload
 ```
 
 Environment variables:

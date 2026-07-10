@@ -11,7 +11,11 @@ use crate::rules::{self, ServerEnv, ServerRules};
 
 use self::cargo::{add_cargo, remove_cargo};
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+/// The game world state.
+///
+/// Clone is derived for save-snapshot purposes: the snapshot captures state
+/// at clone time and is used for SQLite persistence outside the world lock.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WorldState {
     pub world_seed: u64,
     pub map_id: u32,
@@ -202,7 +206,11 @@ impl WorldState {
         self.players.keys().copied().min()
     }
 
-    pub fn apply_action(&mut self, player_id: u64, action: &ValidatedAction) -> String {
+    pub fn apply_action(
+        &mut self,
+        player_id: u64,
+        action: &ValidatedAction,
+    ) -> Result<String, String> {
         match *action {
             ValidatedAction::Move {
                 actor_entity_id,
@@ -248,26 +256,31 @@ impl WorldState {
         self.tick += 1;
     }
 
-    fn apply_move(&mut self, actor_entity_id: u64, target: Position) -> String {
+    fn apply_move(&mut self, actor_entity_id: u64, target: Position) -> Result<String, String> {
         let entity = self
             .entities
             .get_mut(&actor_entity_id)
             .expect("validated move actor must exist");
         let from = entity.position;
         entity.position = target;
-        format!(
+        Ok(format!(
             "entity {actor_entity_id} moved from ({}, {}) to ({}, {})",
             from.x, from.y, target.x, target.y
-        )
+        ))
     }
 
-    fn apply_mine(&mut self, actor_entity_id: u64, target: Position, amount: u32) -> String {
+    fn apply_mine(
+        &mut self,
+        actor_entity_id: u64,
+        target: Position,
+        amount: u32,
+    ) -> Result<String, String> {
         let tile = self.tile_at(target);
         let Some(resource) = tile.resource else {
-            return format!(
+            return Ok(format!(
                 "entity {actor_entity_id} mined 0 at ({}, {})",
                 target.x, target.y
-            );
+            ));
         };
         let mined = amount.min(resource.amount);
         let remaining = resource.amount - mined;
@@ -286,13 +299,13 @@ impl WorldState {
                     kind: resource.kind.item_id().into(),
                     amount: mined,
                 },
-            );
+            )?;
         }
 
-        format!(
+        Ok(format!(
             "entity {actor_entity_id} mined {mined} {:?} at ({}, {})",
             resource.kind, target.x, target.y
-        )
+        ))
     }
 
     fn apply_build(
@@ -302,7 +315,7 @@ impl WorldState {
         target: Position,
         spec_id: &str,
         inputs: &[ItemStack],
-    ) -> String {
+    ) -> Result<String, String> {
         let building_id = self.alloc_id();
         let kind = spec_id_to_building_kind(spec_id);
         self.buildings.insert(
@@ -323,13 +336,18 @@ impl WorldState {
             }
         }
 
-        format!(
+        Ok(format!(
             "entity {actor_entity_id} built {spec_id} {building_id} at ({}, {})",
             target.x, target.y
-        )
+        ))
     }
 
-    fn apply_lift(&mut self, actor_entity_id: u64, kind: ResourceKind, amount: u32) -> String {
+    fn apply_lift(
+        &mut self,
+        actor_entity_id: u64,
+        kind: ResourceKind,
+        amount: u32,
+    ) -> Result<String, String> {
         let position = self
             .entities
             .get(&actor_entity_id)
@@ -362,16 +380,21 @@ impl WorldState {
                     kind: kind.item_id().into(),
                     amount: lifted,
                 },
-            );
+            )?;
         }
 
-        format!(
+        Ok(format!(
             "entity {actor_entity_id} lifted {lifted} {:?} at ({}, {})",
             kind, position.x, position.y
-        )
+        ))
     }
 
-    fn apply_put(&mut self, actor_entity_id: u64, kind: ResourceKind, amount: u32) -> String {
+    fn apply_put(
+        &mut self,
+        actor_entity_id: u64,
+        kind: ResourceKind,
+        amount: u32,
+    ) -> Result<String, String> {
         let position = self
             .entities
             .get(&actor_entity_id)
@@ -386,11 +409,17 @@ impl WorldState {
         };
         if put > 0 {
             let tile = self.tile_at(position);
-            let new_amount = tile
+            let existing = tile
                 .resource
                 .filter(|r| r.kind == kind)
-                .map(|r| r.amount + put)
-                .unwrap_or(put);
+                .map(|r| r.amount)
+                .unwrap_or(0);
+            let new_amount = existing.checked_add(put).ok_or_else(|| {
+                format!(
+                    "tile resource overflow for {:?}: {} + {}",
+                    kind, existing, put
+                )
+            })?;
             self.set_tile_resource(
                 position,
                 Some(ResourceStack {
@@ -400,10 +429,10 @@ impl WorldState {
             );
         }
 
-        format!(
+        Ok(format!(
             "entity {actor_entity_id} put {put} {:?} at ({}, {})",
             kind, position.x, position.y
-        )
+        ))
     }
 
     fn apply_craft(
@@ -412,7 +441,7 @@ impl WorldState {
         recipe_id: &str,
         inputs: &[ItemStack],
         outputs: &[ItemStack],
-    ) -> String {
+    ) -> Result<String, String> {
         let entity = self
             .entities
             .get_mut(&actor_entity_id)
@@ -421,10 +450,10 @@ impl WorldState {
             remove_cargo(entity, &input.kind, input.amount);
         }
         for output in outputs {
-            add_cargo(entity, output.clone());
+            add_cargo(entity, output.clone())?;
         }
 
-        format!("entity {actor_entity_id} crafted {recipe_id}")
+        Ok(format!("entity {actor_entity_id} crafted {recipe_id}"))
     }
 
     fn apply_research(
@@ -433,7 +462,7 @@ impl WorldState {
         actor_entity_id: u64,
         research_id: &str,
         inputs: &[ItemStack],
-    ) -> String {
+    ) -> Result<String, String> {
         let entity = self
             .entities
             .get_mut(&actor_entity_id)
@@ -447,7 +476,7 @@ impl WorldState {
             .expect("validated research player must exist");
         player.researched_ids.insert(research_id.to_string());
 
-        format!("entity {actor_entity_id} researched {research_id}")
+        Ok(format!("entity {actor_entity_id} researched {research_id}"))
     }
 
     fn set_tile_resource(&mut self, position: Position, resource: Option<ResourceStack>) {
@@ -602,22 +631,24 @@ mod tests {
             amount: 1,
         }];
 
-        let result = world.apply_action(
-            1,
-            &ValidatedAction::Craft {
-                actor_entity_id: actor_id,
-                recipe_id: "iron-plate".into(),
-                target_building_id: None,
-                inputs: vec![ItemStack {
-                    kind: "iron-ore".into(),
-                    amount: 1,
-                }],
-                outputs: vec![ItemStack {
-                    kind: "iron-plate".into(),
-                    amount: 1,
-                }],
-            },
-        );
+        let result = world
+            .apply_action(
+                1,
+                &ValidatedAction::Craft {
+                    actor_entity_id: actor_id,
+                    recipe_id: "iron-plate".into(),
+                    target_building_id: None,
+                    inputs: vec![ItemStack {
+                        kind: "iron-ore".into(),
+                        amount: 1,
+                    }],
+                    outputs: vec![ItemStack {
+                        kind: "iron-plate".into(),
+                        amount: 1,
+                    }],
+                },
+            )
+            .expect("craft should succeed");
 
         let cargo = &world.entities.get(&actor_id).expect("actor").cargo;
         assert_eq!(result, format!("entity {actor_id} crafted iron-plate"));
@@ -643,17 +674,19 @@ mod tests {
             amount: 10,
         }];
 
-        let result = world.apply_action(
-            player_id,
-            &ValidatedAction::Research {
-                actor_entity_id: actor_id,
-                research_id: "basic-smelting".into(),
-                inputs: vec![ItemStack {
-                    kind: "iron-ore".into(),
-                    amount: 10,
-                }],
-            },
-        );
+        let result = world
+            .apply_action(
+                player_id,
+                &ValidatedAction::Research {
+                    actor_entity_id: actor_id,
+                    research_id: "basic-smelting".into(),
+                    inputs: vec![ItemStack {
+                        kind: "iron-ore".into(),
+                        amount: 10,
+                    }],
+                },
+            )
+            .expect("research should succeed");
 
         let cargo = &world.entities.get(&actor_id).expect("actor").cargo;
         let player = world.players.get(&player_id).expect("player");
@@ -663,5 +696,36 @@ mod tests {
         );
         assert!(!cargo.iter().any(|stack| stack.kind == "iron-ore"));
         assert!(player.researched_ids.contains("basic-smelting"));
+    }
+
+    #[test]
+    fn apply_put_returns_err_on_tile_resource_overflow() {
+        let mut world = WorldState::new();
+        let actor_id = world.players.get(&1).expect("player").worker_entity_id;
+        let entity = world.entities.get_mut(&actor_id).expect("actor");
+        entity.position = Position::new(1, 0);
+        entity.cargo = vec![ItemStack {
+            kind: "energy".into(),
+            amount: u32::MAX,
+        }];
+
+        world.set_tile_resource(
+            Position::new(1, 0),
+            Some(ResourceStack {
+                kind: ResourceKind::Energy,
+                amount: 1,
+            }),
+        );
+
+        let result = world.apply_action(
+            1,
+            &ValidatedAction::Put {
+                actor_entity_id: actor_id,
+                kind: ResourceKind::Energy,
+                amount: u32::MAX,
+            },
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("overflow"));
     }
 }

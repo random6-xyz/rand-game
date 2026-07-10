@@ -17,6 +17,7 @@ pub const BUILD_CORE_RADIUS: u32 = 4;
 pub const BOT_STDERR_CHANNEL_CAPACITY: usize = 128;
 pub const MAX_ACTION_LOG_ENTRIES: usize = 10000;
 pub const ACTION_LOG_PAGE_SIZE: usize = 100;
+pub const ENABLE_BOT_UPLOAD: bool = false;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
@@ -50,6 +51,7 @@ pub struct ServerRules {
     pub bot_stderr_channel_capacity: usize,
     pub max_action_log_entries: usize,
     pub action_log_page_size: usize,
+    pub enable_bot_upload: bool,
     pub basic_core: RuntimeProfileConfig,
     pub standard_core: RuntimeProfileConfig,
     pub advanced_core: RuntimeProfileConfig,
@@ -71,6 +73,7 @@ impl Default for ServerRules {
             bot_stderr_channel_capacity: BOT_STDERR_CHANNEL_CAPACITY,
             max_action_log_entries: MAX_ACTION_LOG_ENTRIES,
             action_log_page_size: ACTION_LOG_PAGE_SIZE,
+            enable_bot_upload: ENABLE_BOT_UPLOAD,
             basic_core: RuntimeProfileConfig::basic(),
             standard_core: RuntimeProfileConfig::standard(),
             advanced_core: RuntimeProfileConfig::advanced(),
