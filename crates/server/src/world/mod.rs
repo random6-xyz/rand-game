@@ -343,10 +343,10 @@ impl WorldState {
                     );
                 }
                 ProgressKind::Research { research_id } => {
-                    if let Some(entity) = self.entities.get(&entry.entity_id) {
-                        if let Some(player) = self.players.get_mut(&entity.owner_id) {
-                            player.researched_ids.insert(research_id);
-                        }
+                    if let Some(entity) = self.entities.get(&entry.entity_id)
+                        && let Some(player) = self.players.get_mut(&entity.owner_id)
+                    {
+                        player.researched_ids.insert(research_id);
                     }
                 }
             }
