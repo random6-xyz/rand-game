@@ -63,7 +63,7 @@ Commands:
   build                       Build server, common, binary, and client crates
   validate                    Run cargo fmt --check, cargo check, cargo test, cargo clippy
   gen-examples [--out-dir P]   Generate framed FlatBuffers example files
-  server [--addr HOST:PORT] [--env-path P] [--rules-path P] [--debug-max-actions N]
+  server [--addr HOST:PORT] [--env-path P] [--rules-path P] [--debug-max-actions N] [--log-bot-stderr] [--enable-bot-upload]
                               Run rand-game-server
   server-debug                Clean local state and run server with debug action limit
   upload-bot [--player-id N] [--path P] [--addr HOST:PORT]
@@ -140,6 +140,9 @@ fn server(args: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
     if options.log_bot_stderr {
         push_server_arg(&mut cargo_args, &mut has_server_args, "--log-bot-stderr");
     }
+    if options.enable_bot_upload {
+        push_server_arg(&mut cargo_args, &mut has_server_args, "--enable-bot-upload");
+    }
 
     cargo(&cargo_args)
 }
@@ -154,7 +157,11 @@ fn push_server_arg<'a>(args: &mut Vec<&'a str>, has_server_args: &mut bool, valu
 
 fn server_debug() -> Result<(), Box<dyn std::error::Error>> {
     clean_state()?;
-    server(vec!["--debug-max-actions".into(), "1000".into()])
+    server(vec![
+        "--debug-max-actions".into(),
+        "1000".into(),
+        "--enable-bot-upload".into(),
+    ])
 }
 
 fn upload_bot(args: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
@@ -301,6 +308,7 @@ fn write_e2e_recipes_rules() -> Result<(), Box<dyn std::error::Error>> {
         path,
         r#"tick_interval_ms = 50
 observation_radius = 64
+enable_bot_upload = true
 
 [basic_core]
 run_interval_ticks = 1
@@ -413,6 +421,7 @@ fn write_e2e_rules() -> Result<(), Box<dyn std::error::Error>> {
         path,
         r#"tick_interval_ms = 50
 observation_radius = 8
+enable_bot_upload = true
 
 [basic_core]
 run_interval_ticks = 1
@@ -588,6 +597,7 @@ struct Options {
     env_path: Option<String>,
     rules_path: Option<String>,
     log_bot_stderr: bool,
+    enable_bot_upload: bool,
 }
 
 fn parse_options(args: Vec<String>) -> Result<Options, Box<dyn std::error::Error>> {
@@ -610,6 +620,7 @@ fn parse_options(args: Vec<String>) -> Result<Options, Box<dyn std::error::Error
             "--env-path" => options.env_path = Some(required_value(&arg, iter.next())?),
             "--rules-path" => options.rules_path = Some(required_value(&arg, iter.next())?),
             "--log-bot-stderr" => options.log_bot_stderr = true,
+            "--enable-bot-upload" => options.enable_bot_upload = true,
             other => return Err(format!("unknown option `{other}`").into()),
         }
     }

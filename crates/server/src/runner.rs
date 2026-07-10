@@ -1,7 +1,6 @@
 use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
-use std::sync::OnceLock;
 use std::time::Duration;
 
 use rand_game_common::fb::{game_output_buffer_has_identifier, root_as_game_output};
@@ -18,26 +17,15 @@ pub struct BotRunResult {
     pub stderr: String,
 }
 
-static NSJAIL_WARNED: OnceLock<()> = OnceLock::new();
-
 pub fn run_bot(
     path: &Path,
     input_frame: &[u8],
     profile: &RuntimeProfile,
 ) -> Result<BotRunResult, Box<dyn std::error::Error>> {
-    if nsjail_available() {
-        match run_bot_with_nsjail(path, input_frame, profile) {
-            Ok(result) => return Ok(result),
-            Err(err) => {
-                if NSJAIL_WARNED.set(()).is_ok() {
-                    eprintln!("nsjail runner unavailable, using fallback: {err}");
-                }
-            }
-        }
-    } else if NSJAIL_WARNED.set(()).is_ok() {
-        eprintln!("nsjail not found, using fallback for bot execution");
+    if !nsjail_available() {
+        return Err("nsjail is unavailable; bot execution requires nsjail".into());
     }
-    run_bot_fallback(path, input_frame, profile)
+    run_bot_with_nsjail(path, input_frame, profile)
 }
 
 fn nsjail_available() -> bool {
@@ -138,54 +126,6 @@ fn run_bot_with_nsjail(
     })
 }
 
-fn run_bot_fallback(
-    path: &Path,
-    input_frame: &[u8],
-    profile: &RuntimeProfile,
-) -> Result<BotRunResult, Box<dyn std::error::Error>> {
-    let mut child = Command::new(path)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|err| format!("failed to spawn bot {}: {err}", path.display()))?;
-
-    child
-        .stdin
-        .take()
-        .ok_or("bot stdin unavailable")?
-        .write_all(input_frame)?;
-
-    let timeout = Duration::from_millis(profile.wall_time_ms as u64);
-    let status = match child.wait_timeout(timeout)? {
-        Some(status) => status,
-        None => {
-            child.kill()?;
-            child.wait()?;
-            return Err(format!("bot timed out after {}ms", timeout.as_millis()).into());
-        }
-    };
-
-    let stdout = read_limited(child.stdout.take(), profile.stdout_bytes as usize, "stdout")?;
-    let stderr_bytes = read_limited(child.stderr.take(), profile.stderr_bytes as usize, "stderr")?;
-    let stderr = String::from_utf8_lossy(&stderr_bytes).into_owned();
-
-    if !status.success() {
-        return Err(format!("bot exited with {status}; stderr: {stderr}").into());
-    }
-
-    let output_payload = decode_frame(&stdout, FrameKind::GameOutput)?.to_vec();
-    if !game_output_buffer_has_identifier(&output_payload) {
-        return Err("bot output payload is not a BWO1 GameOutput flatbuffer".into());
-    }
-    root_as_game_output(&output_payload)?;
-
-    Ok(BotRunResult {
-        output_payload,
-        stderr,
-    })
-}
-
 fn read_limited<R: Read>(
     reader: Option<R>,
     limit: usize,
@@ -197,7 +137,7 @@ fn read_limited<R: Read>(
     let mut bytes = Vec::new();
     reader
         .by_ref()
-        .take((limit + 1) as u64)
+        .take((limit.saturating_add(1)) as u64)
         .read_to_end(&mut bytes)?;
     if bytes.len() > limit {
         return Err(format!("bot {label} exceeded {limit} bytes").into());
@@ -265,4 +205,39 @@ fn build_seccomp_policy() -> String {
         "}",
     ]
     .join("\n")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn read_limited_exactly_at_limit() {
+        let data = b"hello".as_slice();
+        let result = read_limited(Some(data), 5, "stdout");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), b"hello");
+    }
+
+    #[test]
+    fn read_limited_within_limit() {
+        let data = b"hello".as_slice();
+        let result = read_limited(Some(data), 10, "stdout");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), b"hello");
+    }
+
+    #[test]
+    fn read_limited_exceeds_limit() {
+        let data = b"too long".as_slice();
+        let result = read_limited(Some(data), 3, "stdout");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn read_limited_none_reader() {
+        let result: Result<Vec<u8>, _> = read_limited(None::<&[u8]>, 10, "stdout");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), Vec::<u8>::new());
+    }
 }

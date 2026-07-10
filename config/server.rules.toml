@@ -11,6 +11,7 @@ build_core_radius = 4
 bot_stderr_channel_capacity = 128
 max_action_log_entries = 10000
 action_log_page_size = 100
+enable_bot_upload = false
 
 [basic_core]
 run_interval_ticks = 5

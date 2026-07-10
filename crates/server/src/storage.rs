@@ -667,14 +667,16 @@ mod tests {
             .set_player_bot_path(1, "var/bots/1/bot".into())
             .expect("set bot path");
         world.advance_tick();
-        world.apply_action(
-            1,
-            &ValidatedAction::Put {
-                actor_entity_id: worker_id,
-                kind: ResourceKind::Energy,
-                amount: 2,
-            },
-        );
+        world
+            .apply_action(
+                1,
+                &ValidatedAction::Put {
+                    actor_entity_id: worker_id,
+                    kind: ResourceKind::Energy,
+                    amount: 2,
+                },
+            )
+            .expect("put should succeed");
 
         save_world_to_path(&world, &path).expect("save world");
         let loaded = load_world_from_path(&path)

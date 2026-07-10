@@ -186,6 +186,9 @@ async fn upload_bot(
     Query(query): Query<UploadQuery>,
     body: Bytes,
 ) -> Result<Json<UploadResponse>, (StatusCode, String)> {
+    if !state.inner().config.rules.enable_bot_upload {
+        return Err((StatusCode::FORBIDDEN, "bot upload is disabled".into()));
+    }
     if body.is_empty() {
         return Err((StatusCode::BAD_REQUEST, "empty bot upload".into()));
     }
@@ -210,13 +213,14 @@ async fn upload_bot(
         .map_err(internal_error)?;
     set_executable(&bot_path).map_err(internal_error)?;
 
-    {
+    let world_snapshot = {
         let mut world = state.inner().world.lock().await;
         world
             .set_player_bot_path(player_id, bot_path.clone())
             .map_err(|err| (StatusCode::NOT_FOUND, err))?;
-        storage::save_world(&world).map_err(internal_error)?;
-    }
+        world.clone()
+    };
+    storage::save_world(&world_snapshot).map_err(internal_error)?;
 
     Ok(Json(UploadResponse {
         player_id,
@@ -305,4 +309,22 @@ struct UploadResponse {
     player_id: u64,
     path: String,
     bytes: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::rules::ServerRules;
+
+    #[test]
+    fn enable_bot_upload_defaults_to_false() {
+        let rules = ServerRules::default();
+        assert!(!rules.enable_bot_upload);
+    }
+
+    #[test]
+    fn enable_bot_upload_from_toml_true() {
+        let toml = "enable_bot_upload = true";
+        let rules: ServerRules = toml::from_str(toml).expect("parse should succeed");
+        assert!(rules.enable_bot_upload);
+    }
 }

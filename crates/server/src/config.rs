@@ -20,6 +20,7 @@ pub fn parse_config() -> Result<ServerConfig, Box<dyn std::error::Error>> {
         rules: ServerRules::default(),
         rule_catalog: default_rule_catalog(),
     };
+    let mut enable_bot_upload = false;
     let mut args = std::env::args().skip(1);
 
     while let Some(arg) = args.next() {
@@ -34,6 +35,9 @@ pub fn parse_config() -> Result<ServerConfig, Box<dyn std::error::Error>> {
             "--log-bot-stderr" => {
                 config.log_bot_stderr = true;
             }
+            "--enable-bot-upload" => {
+                enable_bot_upload = true;
+            }
             "--env-path" => {
                 env_path = PathBuf::from(args.next().ok_or("missing value for --env-path")?);
             }
@@ -42,7 +46,7 @@ pub fn parse_config() -> Result<ServerConfig, Box<dyn std::error::Error>> {
             }
             "--help" | "-h" => {
                 println!(
-                    "rand-game-server\n\nUsage:\n  rand-game-server [--addr HOST:PORT] [--env-path P] [--rules-path P] [--debug-max-actions N] [--log-bot-stderr]\n\nEnvironment:\n  RAND_GAME_DEBUG_MAX_ACTIONS=N\n  RAND_GAME_LOG_BOT_STDERR=1"
+                    "rand-game-server\n\nUsage:\n  rand-game-server [--addr HOST:PORT] [--env-path P] [--rules-path P] [--debug-max-actions N] [--log-bot-stderr] [--enable-bot-upload]\n\nEnvironment:\n  RAND_GAME_DEBUG_MAX_ACTIONS=N\n  RAND_GAME_LOG_BOT_STDERR=1"
                 );
                 std::process::exit(0);
             }
@@ -52,6 +56,9 @@ pub fn parse_config() -> Result<ServerConfig, Box<dyn std::error::Error>> {
 
     config.env = load_toml_or_default(&env_path)?;
     config.rules = load_toml_or_default(&rules_path)?;
+    if enable_bot_upload {
+        config.rules.enable_bot_upload = true;
+    }
 
     Ok(config)
 }

@@ -74,7 +74,7 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
         }
     }
 
-    let entries = {
+    let (entries, world_snapshot) = {
         let mut world = state.inner().world.lock().await;
         let tick = world.tick;
         let mut entries = Vec::new();
@@ -101,29 +101,35 @@ pub async fn tick_once(state: SharedState) -> Result<(), Box<dyn std::error::Err
                 eprintln!("rejected action: {rejection}");
             }
 
+            let mut world_copy = world.clone();
             if let Some(memory) = validation.persistent_memory {
-                world.set_player_persistent_memory(player_id, memory)?;
+                world_copy.set_player_persistent_memory(player_id, memory)?;
             }
-
             for action in validation.actions {
-                let result = world.apply_action(player_id, &action);
+                let result = world_copy.apply_action(player_id, &action)?;
                 entries.push(ActionLogEntry::new(tick, player_id, action, result));
             }
+            *world = world_copy;
         }
-        storage::save_world(&world)?;
-
-        entries
+        let snapshot = world.clone();
+        (entries, snapshot)
     };
 
-    let mut action_log = state.inner().action_log.lock().await;
-    let entries = compact_entries(entries);
-    for entry in entries {
-        eprintln!("tick {}: {}", entry.tick, entry.summary());
-        action_log.push(entry);
-    }
-    let max_entries = state.inner().config.rules.max_action_log_entries.max(1);
-    action_log.trim_to(max_entries);
-    storage::save_action_log(&action_log)?;
+    storage::save_world(&world_snapshot)?;
+
+    let action_log_snapshot = {
+        let mut action_log = state.inner().action_log.lock().await;
+        let entries = compact_entries(entries);
+        for entry in entries {
+            eprintln!("tick {}: {}", entry.tick, entry.summary());
+            action_log.push(entry);
+        }
+        let max_entries = state.inner().config.rules.max_action_log_entries.max(1);
+        action_log.trim_to(max_entries);
+        action_log.clone()
+    };
+
+    storage::save_action_log(&action_log_snapshot)?;
 
     Ok(())
 }
@@ -180,10 +186,12 @@ fn apply_debug_output_sequentially(
             &config.rules,
             Some(&config.rule_catalog),
         ) {
-            Ok(action) => {
-                let result = world.apply_action(player_id, &action);
-                entries.push(ActionLogEntry::new(tick, player_id, action, result));
-            }
+            Ok(action) => match world.apply_action(player_id, &action) {
+                Ok(result) => {
+                    entries.push(ActionLogEntry::new(tick, player_id, action, result));
+                }
+                Err(err) => eprintln!("apply action failed: action {index}: {err}"),
+            },
             Err(reason) => eprintln!("rejected action: action {index}: {reason}"),
         }
     }
